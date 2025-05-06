@@ -1,0 +1,21 @@
+# pip install pipreqs
+# pipreqs ./ --force 하면 자동생성가능 
+
+fastapi==0.115.12
+uvicorn==0.34.0
+pydantic==2.11.1
+python-dotenv==1.1.0
+
+torch==2.6.0
+transformers @ git+https://github.com/huggingface/transformers@786d9c5ed920a099573ea7b6dbf265f1aeb32fc0
+accelerate==1.5.2
+safetensors==0.5.3
+
+numpy==2.2.4
+scikit-learn==1.6.1
+pandas==2.2.3
+
+requests==2.32.3
+python-multipart==0.0.20
+
+openai==1.77.0
