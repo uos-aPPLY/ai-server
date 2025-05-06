@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Body, Form
 from dotenv import load_dotenv
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 import requests
 from PIL import Image
 import openai
@@ -17,15 +17,22 @@ client = openai.Client(api_key=os.getenv("OPENAI_API_KEY"))
 
 router = APIRouter()
 
-class ImageItem(BaseModel):
-    path: str
-    date: str
-    location: str
-    focus: str
+
+class PhotoItem(BaseModel):
+    id: int
+    photoUrl: str
+    shootingDateTime: Optional[str] = None
+    location: Optional[str] = None
+    detailedAddress: Optional[str] = None
+    isRecommended: Optional[bool] = None
+    sequence: int
+    createdAt: str
+    userId: int
+    diary: Optional[str] = None 
 
 class DiaryRequest(BaseModel):
     user_speech: str
-    image_info: List[ImageItem]
+    image_info: List[PhotoItem]
 
 
 def convert_image_to_base64(image_path: str, target_width: int = 800) -> str:
@@ -123,20 +130,25 @@ Avoid direct reuse of any phrases. Instead, match the **vibe, pacing, emotional 
 - Output **only the diary text** — no comments, summaries, or section titles
 """
 
-def convert_image_info_to_text(image_info: List[ImageItem]) -> str:
+def convert_image_info_to_text(image_info: List[PhotoItem]) -> str:
     """
     Convert image information to a formatted string.
     """
     return "\n\n".join(
+        # f"""Information about the {i}th entered image:
+        # Date: {img.shootingDateTime}
+        # Location: {img.detailedAddress}
+        # What to look for in a photo: {img.focus}
+        # """
+        # for i, img in enumerate(image_info)
         f"""Information about the {i}th entered image:
-        Date: {img.date}
-        Location: {img.location}
-        What to look for in a photo: {img.focus}
+        Date: {img.shootingDateTime}
+        Location: {img.detailedAddress}
         """
         for i, img in enumerate(image_info)
     )
 
-def generate_input_message(prompt: str, images: List[ImageItem]) -> str:
+def generate_input_message(prompt: str, images: List[PhotoItem]) -> str:
     """
     Generate the input message for the AI model.
     """
@@ -150,7 +162,7 @@ def generate_input_message(prompt: str, images: List[ImageItem]) -> str:
         ]
 
     for i in images:
-        image = convert_image_to_base64(i.path)
+        image = convert_image_to_base64(i.photoUrl)
         message[0]["content"].append(
                     {
                         "type": "input_image", 
@@ -185,3 +197,5 @@ async def generate_diary_by_ai(
 
     # 결과 출력
     return response.output_text
+    # req:Dict):
+    # return req
