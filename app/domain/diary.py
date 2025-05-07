@@ -148,7 +148,7 @@ def convert_image_info_to_text(image_info: List[PhotoItem]) -> str:
         for i, img in enumerate(image_info)
     )
 
-def generate_input_message(prompt: str, images: List[PhotoItem]) -> str:
+def build_message(prompt: str, images: List[PhotoItem]) -> str:
     """
     Generate the input message for the AI model.
     """
@@ -187,7 +187,7 @@ async def generate_diary_by_ai(
 
     prompt = generate_diary_prompt(user_speech=req.user_speech, image_information=image_info_text)
 
-    message = generate_input_message(prompt=prompt, images=req.image_info)
+    message = build_message(prompt=prompt, images=req.image_info)
 
     # GPT-4o 멀티모달 호출
     response = client.responses.create(

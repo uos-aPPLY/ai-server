@@ -1,0 +1,14 @@
+# .gitignore
+# This file is used to ignore files and directories in the repository.
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*.pyc
+
+# env files
+.env
+
+# jpg files
+*.jpg
+*.jpeg
