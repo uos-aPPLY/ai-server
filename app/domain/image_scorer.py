@@ -9,6 +9,8 @@ from openai import OpenAI
 from io import BytesIO
 from typing import List
 import requests
+from pydantic import BaseModel, HttpUrl
+from typing import Union
 
 load_dotenv()
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
@@ -123,20 +125,35 @@ def mllm_select_images_gpt(collages, model="gpt-4.1"):
     return resp.output[0].content[0].text
 
 
-def load_images_from_urls(image_urls: List[str]):
+
+class PhotoInput(BaseModel):
+    id: Union[int, str]
+    photoUrl: HttpUrl
+
+class RankedPhotoOutput(BaseModel):
+    id: str # Using derived string ID
+    photoUrl: HttpUrl
+    adjusted_score: float
+    original_aesthetic_score: float
+    penalty_applied: float
+
+
+def load_images_from_urls(image_urls: List[PhotoInput]):
     loaded = []
-    for idx, url in enumerate(image_urls, 1):
+    for photos in enumerate(image_urls, 1):
         try:
-            response = requests.get(url)
+            response = requests.get(photos.photoUrl)
             img = Image.open(BytesIO(response.content)).convert("RGB")
-            loaded.append((img, idx))
+            loaded.append((img, photos.id))
         except Exception as e:
             print(f"이미지 로딩 실패: {url}, 오류: {e}")
     return loaded
 
 
+
+
 @router.post("/score")
-async def score_image(images: List[str] = Body(...)):
+async def score_image(images: List[PhotoInput] = Body(...)):
     """
     이미지 URL 리스트를 받아서 각 이미지를 스코어링하는 API 엔드포인트
     """
