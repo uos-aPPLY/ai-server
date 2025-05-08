@@ -25,7 +25,7 @@ class PhotoItem(BaseModel):
     location: Optional[str] = None
     detailedAddress: Optional[str] = None
     isRecommended: Optional[bool] = None
-    sequence: int
+    sequence: Optional[int] = None
     createdAt: str
     userId: int
     diary: Optional[str] = None 
@@ -177,12 +177,10 @@ def build_message(prompt: str, images: List[PhotoItem]) -> str:
 @router.post("/generate")
 async def generate_diary_by_ai(
     req: DiaryRequest
-):
+)-> str:
     """
     Generate a diary entry based on user speech and images.
     """
-
-    
     image_info_text = convert_image_info_to_text(req.image_info)
 
     prompt = generate_diary_prompt(user_speech=req.user_speech, image_information=image_info_text)
