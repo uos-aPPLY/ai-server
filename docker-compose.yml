@@ -1,0 +1,14 @@
+services:
+  ai-server:
+    build:
+      context: .
+    container_name: ai-server
+    ports:
+      - "8000:8000"
+    # restart: always
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - capabilities: [gpu]  # GPU 사용 시 필요
+    # runtime: nvidia               # GPU 환경이면 꼭 추가
