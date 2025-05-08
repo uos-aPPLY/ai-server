@@ -157,7 +157,7 @@ async def score_image(images: List[PhotoInput] = Body(...)):
     이미지 URL 리스트를 받아서 각 이미지를 스코어링하는 API 엔드포인트
     """
     images_list = load_images_from_urls(images)
-    # ✅ ID ↔ 번호 매핑
+    # ID ↔ 번호 매핑
     indexed_images = []
     for idx, (img, id_) in enumerate(images_list, start=1):
         indexed_images.append((img, id_, idx))
