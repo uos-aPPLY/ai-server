@@ -71,7 +71,6 @@ def annotate_image(image, number):
 def create_collage_with_padding(image_tuples, rows=4, cols=4,thumb_size=(500, 500)):
     max_imgs = rows * cols
     group = image_tuples[:max_imgs]
-    
     thumbs = []
     for img, global_idx in group:
         thumb = make_thumbnail_with_padding(img, target_size=thumb_size)
@@ -140,13 +139,13 @@ class RankedPhotoOutput(BaseModel):
 
 def load_images_from_urls(image_urls: List[PhotoInput]):
     loaded = []
-    for photos in enumerate(image_urls, 1):
+    for photos in image_urls:
         try:
             response = requests.get(photos.photoUrl)
             img = Image.open(BytesIO(response.content)).convert("RGB")
             loaded.append((img, photos.id))
         except Exception as e:
-            print(f"이미지 로딩 실패: {url}, 오류: {e}")
+            print(f"이미지 로딩 실패: {photos.id}, 오류: {e}")
     return loaded
 
 
@@ -158,13 +157,24 @@ async def score_image(images: List[PhotoInput] = Body(...)):
     이미지 URL 리스트를 받아서 각 이미지를 스코어링하는 API 엔드포인트
     """
     images_list = load_images_from_urls(images)
+    # ✅ ID ↔ 번호 매핑
+    indexed_images = []
+    for idx, (img, id_) in enumerate(images_list, start=1):
+        indexed_images.append((img, id_, idx))
     collages = []
-    for i in range(0, len(images_list), 16):
-        group = images_list[i:i+16]
+    for i in range(0, len(indexed_images), 16):
+        group = [(img, idx) for img, id_, idx in indexed_images[i:i+16]]
         collage = create_collage_with_padding(group, rows=4, cols=4, thumb_size=(500,500))
         collages.append(collage)
-        collage.save(f"collage_{i//16+1}.jpg")
+        # collage.save(f"collage_{i//16+1}.jpg")
 
     selected = mllm_select_images_gpt(collages, model="gpt-4.1")
 
-    return selected
+    # 예: GPT 응답 "3,5,8"
+    selected_idxs = [int(x.strip()) for x in selected.split(",")]
+
+    # 원래 ID로 매핑
+    # 튜플에서 idx가 일치하는 항목의 id 추출
+    selected_ids = [id_ for img, id_, idx in indexed_images if idx in selected_idxs]
+
+    return selected_ids

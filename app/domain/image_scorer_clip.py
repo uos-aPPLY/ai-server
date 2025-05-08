@@ -10,13 +10,14 @@ import pytorch_lightning as pl
 import clip
 from PIL import Image 
 import os
-import tqdm
 import requests 
 from io import BytesIO
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.preprocessing import MinMaxScaler
 
 router = APIRouter()
+
+
 
 # ----------------------- MLP 모델 정의 -----------------------
 class MLP(pl.LightningModule):
@@ -55,8 +56,9 @@ mlp_model = MLP(input_size=768).to(device)
 mlp_model.load_state_dict(torch.load(model_weights_path, map_location=device))
 mlp_model.eval()
 
-clip_model, preprocess = clip.load("ViT-L/14", device=device)
+os.environ["TORCH_HOME"] = "/root/.cache/clip"  # 컨테이너 내부 경로
 
+clip_model, preprocess = clip.load("ViT-L/14", device=device)
 
 class PhotoInput(BaseModel):
     id: Union[int, str]
