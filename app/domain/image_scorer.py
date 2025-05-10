@@ -11,12 +11,14 @@ from typing import List
 import requests
 from pydantic import BaseModel, HttpUrl
 from typing import Union
+import logging
 
 load_dotenv()
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
 client = OpenAI()
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 class PhotoInput(BaseModel):
@@ -172,25 +174,6 @@ def create_reference_collage(reference_images):
     indexed = [(img, idx) for idx, img in enumerate(reference_images, start=1)]
     return create_collage_with_padding(indexed, rows=3, cols=3, thumb_size=(500, 500))
 
-# 이미지 loading, 이미지 순서 shuffling, 이미지 resizing, 이미지 annotating
-def load_and_annotate_images(image_dir:str, base_width=800):
-    images = []
-    image_files = sorted([f for f in os.listdir(image_dir) if f.lower().endswith(('.jpg', '.jpeg', 'png'))])
-    random.shuffle(image_files)
-
-    for idx, file_name in enumerate(image_files, start=1):
-        image_path = os.path.join(image_dir, file_name)
-        try:
-            img = Image.open(image_path).convert("RGB")
-            w, h = img.size
-            new_h = int(h * (base_width / w))
-            img = img.resize((base_width, new_h), Image.Resampling.LANCZOS)
-            images.append((img, idx))
-        except Exception as e:
-            print(f"이미지 {image_path} 로드 에러: {e}")
-
-    return images
-
 # GPT용 message 작성 함수
 def build_message(prompt: str, images, collage_ref=None):
     msg = [{"role":"user", "content":[{"type":"input_text", "text":prompt}]}]
@@ -218,11 +201,12 @@ def load_images_from_urls(image_urls: List[PhotoInput]):
     loaded = []
     for photos in image_urls:
         try:
+            logger.info(f"이미지 요청: {photos.id}")
             response = requests.get(photos.photoUrl)
             img = Image.open(BytesIO(response.content)).convert("RGB")
             loaded.append((img, photos.id))
         except Exception as e:
-            print(f"이미지 로딩 실패: {photos.id}, 오류: {e}")
+            logger.error(f"이미지 로딩 실패: {photos.id}, 오류: {e}")
     return loaded
 
 
@@ -233,31 +217,35 @@ async def score_image(request: ImageScoringRequest):
     """
     이미지 URL 리스트를 받아서 추천 이미지 id를 반환하는 API 엔드포인트
     """
-    # 이미지 불러오기
-    images_list = load_images_from_urls(request.images)
-    reference_list = load_images_from_urls(request.reference_images)
-    # ID ↔ 번호 매핑
-    indexed_images = []
-    for idx, (img, id_) in enumerate(images_list, start=1):
-        indexed_images.append((img, id_, idx))
-        # 콜라주 생성
-    collages = []
-    for i in range(0, len(indexed_images), 16):
-        group = [(img, idx) for img, id_, idx in indexed_images[i:i+16]]
-        collage = create_collage_with_padding(group, rows=4, cols=4, thumb_size=(500, 500))
-        collages.append(collage)
+    logger.info("이미지 스코어링 요청 수신됨")
+    try:
+        # 이미지 불러오기
+        images_list = load_images_from_urls(request.images)
+        reference_list = load_images_from_urls(request.reference_images)
+        # ID ↔ 번호 매핑
+        indexed_images = []
+        for idx, (img, id_) in enumerate(images_list, start=1):
+            indexed_images.append((img, id_, idx))
+            # 콜라주 생성
+        collages = []
+        for i in range(0, len(indexed_images), 16):
+            group = [(img, idx) for img, id_, idx in indexed_images[i:i+16]]
+            collage = create_collage_with_padding(group, rows=4, cols=4, thumb_size=(500, 500))
+            collages.append(collage)
 
-    ref_images = [(img, idx+1) for idx, (img, _) in enumerate(reference_list)]
-    collage_ref = create_collage_with_padding(ref_images, rows=3, cols=3, thumb_size=(500, 500))
-    collages.append(collage_ref)
+        ref_images = [(img, idx+1) for idx, (img, _) in enumerate(reference_list)]
+        collage_ref = create_collage_with_padding(ref_images, rows=3, cols=3, thumb_size=(500, 500))
+        collages.append(collage_ref)
 
 
-    selected = mllm_select_images_gpt(collages=collages,num_ref=len(reference_list),model="gpt-4.1",collage_ref=collage_ref)
+        selected = mllm_select_images_gpt(collages=collages,num_ref=len(reference_list),model="gpt-4.1",collage_ref=collage_ref)
 
-    selected_idxs = [int(x.strip()) for x in selected.split(",") if x.strip().isdigit()]
+        selected_idxs = [int(x.strip()) for x in selected.split(",") if x.strip().isdigit()]
 
-    # 원래 ID로 매핑
-    selected_ids = [id_ for img, id_, idx in indexed_images if idx in selected_idxs]
+        # 원래 ID로 매핑
+        selected_ids = [id_ for img, id_, idx in indexed_images if idx in selected_idxs]
 
-    return selected_ids
-
+        return selected_ids
+    except Exception as e:
+        logger.error(f"이미지 스코어링 중 오류 발생: {e}")
+        return {"error": str(e)}
