@@ -1,41 +1,16 @@
-from fastapi import APIRouter
-from dotenv import load_dotenv
-from pydantic import BaseModel
-from typing import List, Optional
-import requests
-from PIL import Image
-import logging
 import openai
-import base64
 import os
+import base64
+import requests
 import io
+from PIL import Image
+from dotenv import load_dotenv
+from typing import List
+from app.schemas.diary_schema import DiaryRequest, DiaryResponse, PhotoItem
+from app.core.logger import logger
+from app.core.config import client 
 
 load_dotenv()
-
-client = openai.Client(api_key=os.getenv("OPENAI_API_KEY"))
-
-router = APIRouter()
-
-logger = logging.getLogger(__name__)
-
-class PhotoItem(BaseModel):
-    photoUrl: str
-    shootingDateTime: Optional[str] = None
-    detailedAddress: Optional[str] = None
-    sequence: Optional[int] = None
-    keyword : Optional[str] = None
-
-class DiaryRequest(BaseModel):
-    user_speech: str
-    image_info: List[PhotoItem]
-
-class DiaryResponse(BaseModel):
-    diary: str
-    emoji: str
-
-    class Config:
-        orm_mode = True
-
 
 def convert_image_to_base64(image_path: str, target_width: int = 800) -> str:
     """
@@ -196,10 +171,6 @@ def build_message(prompt: str, images: List[PhotoItem]) -> str:
             raise
     return message
 
-
-
-
-@router.post("/generate")
 async def generate_diary_by_ai(
     req: DiaryRequest
 )-> DiaryResponse:
