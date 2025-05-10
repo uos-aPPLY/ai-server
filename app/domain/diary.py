@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Body, Form
+from fastapi import APIRouter
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from typing import List, Optional
@@ -87,13 +87,13 @@ Your task is to write a **single cohesive diary entry in Korean** that:
 <Additional Task – Emoji Classification>
 After writing the diary entry, analyze the overall emotional tone and classify it with one of the following emoji names that best represents the **dominant mood** of the entire diary:
 
-- **Happy** – bright, joyful, light-hearted mood  
-- **Smile** – calm contentment or warmth  
-- **Cool** – confident, relaxed, stylish tone  
-- **Angry** – irritation, disappointment, or frustration  
-- **Sneaky** – mischievous, playful, cheeky tone  
-- **Annoyed** – annoyed, sulky, displeased tone  
-- **Proud** – self-reflective achievement, confidence, or pride  
+- **happy** – bright, joyful, light-hearted mood  
+- **smile** – calm contentment or warmth  
+- **cool** – confident, relaxed, stylish tone  
+- **angry** – irritation, disappointment, or frustration  
+- **sneaky** – mischievous, playful, cheeky tone  
+- **annoyed** – annoyed, sulky, displeased tone  
+- **proud** – self-reflective achievement, confidence, or pride  
 
 Return the result in the following format (Korean diary only, no explanation):
 
@@ -202,7 +202,7 @@ def build_message(prompt: str, images: List[PhotoItem]) -> str:
 @router.post("/generate")
 async def generate_diary_by_ai(
     req: DiaryRequest
-)-> str:
+)-> DiaryResponse:
     """
     Generate a diary entry based on user speech and images.
     """
@@ -217,9 +217,19 @@ async def generate_diary_by_ai(
             model="gpt-4.1",
             input=message
         )
+        # 결과 파싱
+        output = response.output_text.strip()
+        # 마지막 단어를 이모지로 떼고 나머지를 일기로 처리
+        tokens = output.strip().rsplit(" ", 1)
+        if len(tokens) == 2:
+            diary_text, emoji = tokens
+            if diary_text.endswith(","):
+                diary_text = diary_text[:-1].strip()
+        else:
+            diary_text = output
+            emoji = "Unknown"
 
-        # 결과 출력
-        return response.output_text
+        return DiaryResponse(diary=diary_text.strip(), emoji=emoji.strip())
     except openai.APIConnectionError as e:
         logger.error(f"[OpenAI 연결 오류] {e}")
         return "OpenAI API 서버에 연결할 수 없습니다."
