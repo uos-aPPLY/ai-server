@@ -1,7 +1,5 @@
 from fastapi import APIRouter, Form, Body
 import os
-import random
-import time
 import base64
 from dotenv import load_dotenv
 from PIL import Image, ImageDraw, ImageFont
@@ -12,6 +10,8 @@ import requests
 from pydantic import BaseModel, HttpUrl
 from typing import Union
 import logging
+import aiohttp
+import asyncio
 
 load_dotenv()
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
@@ -28,14 +28,6 @@ class PhotoInput(BaseModel):
 class ImageScoringRequest(BaseModel):
     images: List[PhotoInput]
     reference_images: List[PhotoInput]
-
-class RankedPhotoOutput(BaseModel):
-    id: str
-    photoUrl: HttpUrl
-    adjusted_score: float
-    original_aesthetic_score: float
-    penalty_applied: float
-
 
 
 MLLM_SCORING_PROMPT = """You are given a sequence of images.
@@ -195,8 +187,6 @@ def mllm_select_images_gpt(collages, num_ref, model="gpt-4.1", collage_ref=None)
     resp = client.responses.create(model=model, input=message)
     return resp.output[0].content[0].text
 
-
-
 def load_images_from_urls(image_urls: List[PhotoInput]):
     loaded = []
     for photos in image_urls:
@@ -210,7 +200,33 @@ def load_images_from_urls(image_urls: List[PhotoInput]):
     return loaded
 
 
+from concurrent.futures import ProcessPoolExecutor
+import aiohttp
 
+# 1. 비동기로 이미지 다운로드
+async def fetch_image(photo):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(str(photo.photoUrl)) as resp:
+            content = await resp.read()
+            return (content, photo.id)
+
+# 2. 병렬로 이미지 디코딩 (CPU-bound)
+def decode_image(content_and_id):
+    content, id_ = content_and_id
+    img = Image.open(BytesIO(content)).convert("RGB")
+    return (img, id_)
+
+# 3. 전체 처리 함수
+async def load_and_decode_images(photo_list):
+    # Step 1: async 다운로드
+    tasks = [fetch_image(photo) for photo in photo_list]
+    contents = await asyncio.gather(*tasks)
+
+    # Step 2: 병렬 디코딩
+    with ProcessPoolExecutor() as executor:
+        decoded = list(executor.map(decode_image, contents))
+
+    return decoded
 
 @router.post("/score")
 async def score_image(request: ImageScoringRequest):
@@ -220,8 +236,13 @@ async def score_image(request: ImageScoringRequest):
     logger.info("이미지 스코어링 요청 수신됨")
     try:
         # 이미지 불러오기
-        images_list = load_images_from_urls(request.images)
-        reference_list = load_images_from_urls(request.reference_images)
+        if(len(request.images)>100): # 100장 이상일 경우 비동기 처리
+            images_list = await load_and_decode_images(request.images)
+            reference_list = load_images_from_urls(request.reference_images) if request.reference_images else []
+        else: # 100장 이하일 경우 동기 처리
+            images_list = load_images_from_urls(request.images)
+            reference_list = load_images_from_urls(request.reference_images) if request.reference_images else []
+            
         # ID ↔ 번호 매핑
         indexed_images = []
         for idx, (img, id_) in enumerate(images_list, start=1):
@@ -232,10 +253,11 @@ async def score_image(request: ImageScoringRequest):
             group = [(img, idx) for img, id_, idx in indexed_images[i:i+16]]
             collage = create_collage_with_padding(group, rows=4, cols=4, thumb_size=(500, 500))
             collages.append(collage)
-
-        ref_images = [(img, idx+1) for idx, (img, _) in enumerate(reference_list)]
-        collage_ref = create_collage_with_padding(ref_images, rows=3, cols=3, thumb_size=(500, 500))
-        collages.append(collage_ref)
+        collage_ref = None
+        if reference_list:
+            ref_images = [(img, idx+1) for idx, (img, _) in enumerate(reference_list)]
+            collage_ref = create_collage_with_padding(ref_images, rows=3, cols=3, thumb_size=(500, 500))
+            collages.append(collage_ref)
 
 
         selected = mllm_select_images_gpt(collages=collages,num_ref=len(reference_list),model="gpt-4.1",collage_ref=collage_ref)
