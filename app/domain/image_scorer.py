@@ -1,25 +1,34 @@
-from fastapi import APIRouter, Form, Body
+from fastapi import APIRouter
+from pydantic import BaseModel, HttpUrl
+from typing import List, Union
+
 import os
 import base64
-from dotenv import load_dotenv
-from PIL import Image, ImageDraw, ImageFont
-from openai import OpenAI
-from io import BytesIO
-from typing import List
-import requests
-from pydantic import BaseModel, HttpUrl
-from typing import Union
 import logging
 import aiohttp
 import asyncio
+import requests
 
+from dotenv import load_dotenv
+from io import BytesIO
+from PIL import Image, ImageDraw, ImageFont
+from concurrent.futures import ProcessPoolExecutor
+import aiohttp
+from openai import OpenAI
+
+
+# 환경 변수 로드
 load_dotenv()
+
+# 로깅 초기화
+logger = logging.getLogger(__name__)
+
+# OpenAI 클라이언트 초기화
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
 client = OpenAI()
 
+# FastAPI 라우터 선언
 router = APIRouter()
-logger = logging.getLogger(__name__)
-
 
 class PhotoInput(BaseModel):
     id: Union[int, str]
@@ -199,9 +208,6 @@ def load_images_from_urls(image_urls: List[PhotoInput]):
             logger.error(f"이미지 로딩 실패: {photos.id}, 오류: {e}")
     return loaded
 
-
-from concurrent.futures import ProcessPoolExecutor
-import aiohttp
 
 # 1. 비동기로 이미지 다운로드
 async def fetch_image(photo):
