@@ -18,31 +18,111 @@ client = OpenAI()
 
 router = APIRouter()
 
-mllm_select_images_collage_instruction = """
-You are presented with one or more 4×4 collages, each containing up to 16 images. (The last collage may have fewer than 16 images.)
-Each image is labeled with a red number in the upper left corner.
-Treat all images across all collages as a single unified collection.
-Your task is to globally compare every image and select exactly 9 image numbers from the entire collection that best satisfy the <Rule> criteria below.
-Follow the <Format> instructions precisely.
 
-<Rule>
-1. Group images that share at least '75%' similarity into clusters.
-2. Your overall goal is to select 9 images that are as diverse as possible and avoid redundancy.
-3. If there are exactly 9 unique (non-duplicated) clusters, choose the most aesthetically pleasing image from each cluster.
-4. If there are more than 9 unique clusters, select one representative image (the most aesthetically appealing) from each cluster while ensuring a diversity of categories (e.g., landscapes, portraits, food, etc.).
-5. If there are fewer than 9 unique clusters, select the most aesthetically pleasing image from each cluster, and then fill the remaining slots by choosing additional diverse images from clusters that contain similar images.
-6. An aesthetically pleasing image should satisfy the following:
-   a. It must be in sharp focus and very clear.
-   b. It should be high quality (high resolution).
-   c. The composition must be well balanced.
-   d. The lighting should be natural, with good contrast and appropriate exposure.
-   e. The overall color scheme should be harmonious, evoking an emotionally appealing atmosphere.
-</Rule>
+class PhotoInput(BaseModel):
+    id: Union[int, str]
+    photoUrl: HttpUrl
 
-<Format>
-Return only the numbers corresponding to the top 9 images that fit the <Rule>, separated by commas (","). No additional text.
-</Format>
+class ImageScoringRequest(BaseModel):
+    images: List[PhotoInput]
+    reference_images: List[PhotoInput]
+
+class RankedPhotoOutput(BaseModel):
+    id: str
+    photoUrl: HttpUrl
+    adjusted_score: float
+    original_aesthetic_score: float
+    penalty_applied: float
+
+
+
+MLLM_SCORING_PROMPT = """You are given a sequence of images.
+
+- The first {num_reference} images are **reference images**. These are example images that should **not be selected or closely mimicked**.
+- The remaining images are part of one or more **4×4 collages**, each image labeled with a red number in the upper-left corner.
+- You must select only from the collage images (i.e., excluding the reference images).
+
+Your task is to evaluate all collage images (excluding the reference images), and select the **top {top_k} images** that are both:
+1. The aesthetic quality of the image.
+2. Its visual dissimilarity from the reference images (i.e., images too similar to any reference image must be rated lower).
+
+<Rules>
+1. Do **not** select images that are visually similar (≥75%) to any reference image.
+2. Select images that are both aesthetically pleasing and visually distinct from the reference images.
+3. Aesthetically pleasing images should:
+   - Be sharp and in clear focus.
+   - Be high-resolution and high-quality.
+   - Have a well-balanced composition.
+   - Have natural lighting with good contrast and proper exposure.
+   - Present a harmonious color scheme and emotionally appealing atmosphere.
+4. Consider diversity of subject matter (e.g., landscapes, portraits, food, architecture, etc.).
+5. Choose the {top_k} best images based on overall quality and uniqueness from the reference images.
+
+⚠️ You **must evaluate every single image in the collage(s)** (excluding the reference images).  
+Do **not** skip or ignore any images.
+
+<Output Format>
+Return **only** the selected top {top_k} image numbers, in descending order of visual quality and uniqueness.  
+**Absolutely do NOT include any explanation, commentary, or extra text. Output ONLY the image numbers.**
+
+Format:
+image_number, image_number, image_number  
+(e.g., "3, 7, 12")
+
+⚠️ Do NOT include:
+- Any greeting
+- Any score values
+- Any explanation
+- Any formatting other than the one shown above
+
+Return only the **top {top_k} image numbers** from the collage images. (excluding reference images).
 """
+
+NO_REF_PROMPT = """You are given a sequence of images.
+
+- The remaining images are part of one or more **4×4 collages**, each image labeled with a red number in the upper-left corner.
+
+Your task is to evaluate all collage images, and select the **top 9 images** that are both:
+1. The aesthetic quality of the image.
+2. Its visual distinctiveness from other images.
+
+<Rules>
+1. Select images that are both aesthetically pleasing and visually distinct.
+2. Aesthetically pleasing images should:
+   - Be sharp and in clear focus.
+   - Be high-resolution and high-quality.
+   - Have a well-balanced composition.
+   - Have natural lighting with good contrast and proper exposure.
+   - Present a harmonious color scheme and emotionally appealing atmosphere.
+3. Consider diversity of subject matter (e.g., landscapes, portraits, food, architecture, etc.).
+4. Choose the 9 best images based on overall quality and uniqueness
+
+⚠️ You **must evaluate every single image in the collage(s)**.  
+Do **not** skip or ignore any images.
+
+<Output Format>
+Return **only** the selected top 9 image numbers, in descending order of visual quality and uniqueness.  
+**Absolutely do NOT include any explanation, commentary, or extra text. Output ONLY the image numbers.**
+
+Format:
+image_number, image_number, image_number  
+(e.g., "3, 7, 12")
+
+⚠️ Do NOT include:
+- Any greeting
+- Any score values
+- Any explanation
+- Any formatting other than the one shown above
+
+Return only the **top 9 image numbers** from the collage images.
+"""
+
+
+def generate_scoring_prompt(num_reference: int) -> str:
+    if num_reference == 0:
+        return NO_REF_PROMPT
+    else:
+        return MLLM_SCORING_PROMPT.format(num_reference=num_reference, top_k=9-num_reference)
 
 # 이미지 resizing + padding
 def make_thumbnail_with_padding(img: Image.Image, target_size=(500, 500), bg_color=(255, 255, 255)) -> Image.Image:
@@ -88,6 +168,10 @@ def create_collage_with_padding(image_tuples, rows=4, cols=4,thumb_size=(500, 50
     
     return collage
 
+def create_reference_collage(reference_images):
+    indexed = [(img, idx) for idx, img in enumerate(reference_images, start=1)]
+    return create_collage_with_padding(indexed, rows=3, cols=3, thumb_size=(500, 500))
+
 # 이미지 loading, 이미지 순서 shuffling, 이미지 resizing, 이미지 annotating
 def load_and_annotate_images(image_dir:str, base_width=800):
     images = []
@@ -108,8 +192,13 @@ def load_and_annotate_images(image_dir:str, base_width=800):
     return images
 
 # GPT용 message 작성 함수
-def build_message(prompt: str, images):
+def build_message(prompt: str, images, collage_ref=None):
     msg = [{"role":"user", "content":[{"type":"input_text", "text":prompt}]}]
+    if collage_ref:
+        buffer = BytesIO()
+        collage_ref.save(buffer, format="JPEG")
+        data_url = "data:image/jpeg;base64," + base64.b64encode(buffer.getvalue()).decode()
+        msg[0]["content"].append({"type":"input_image","image_url":data_url})
     for img in images:
         buffer = BytesIO()
         img.save(buffer, format="JPEG")
@@ -118,23 +207,11 @@ def build_message(prompt: str, images):
     return msg
 
 # GPT 이미지 선택 함수
-def mllm_select_images_gpt(collages, model="gpt-4.1"):
-    message = build_message(mllm_select_images_collage_instruction, collages)
+def mllm_select_images_gpt(collages, num_ref, model="gpt-4.1", collage_ref=None):
+    message = build_message(generate_scoring_prompt(num_ref), collages, collage_ref)
     resp = client.responses.create(model=model, input=message)
     return resp.output[0].content[0].text
 
-
-
-class PhotoInput(BaseModel):
-    id: Union[int, str]
-    photoUrl: HttpUrl
-
-class RankedPhotoOutput(BaseModel):
-    id: str # Using derived string ID
-    photoUrl: HttpUrl
-    adjusted_score: float
-    original_aesthetic_score: float
-    penalty_applied: float
 
 
 def load_images_from_urls(image_urls: List[PhotoInput]):
@@ -152,29 +229,35 @@ def load_images_from_urls(image_urls: List[PhotoInput]):
 
 
 @router.post("/score")
-async def score_image(images: List[PhotoInput] = Body(...)):
+async def score_image(request: ImageScoringRequest):
     """
-    이미지 URL 리스트를 받아서 각 이미지를 스코어링하는 API 엔드포인트
+    이미지 URL 리스트를 받아서 추천 이미지 id를 반환하는 API 엔드포인트
     """
-    images_list = load_images_from_urls(images)
+    # 이미지 불러오기
+    images_list = load_images_from_urls(request.images)
+    reference_list = load_images_from_urls(request.reference_images)
     # ID ↔ 번호 매핑
     indexed_images = []
     for idx, (img, id_) in enumerate(images_list, start=1):
         indexed_images.append((img, id_, idx))
+        # 콜라주 생성
     collages = []
     for i in range(0, len(indexed_images), 16):
         group = [(img, idx) for img, id_, idx in indexed_images[i:i+16]]
-        collage = create_collage_with_padding(group, rows=4, cols=4, thumb_size=(500,500))
+        collage = create_collage_with_padding(group, rows=4, cols=4, thumb_size=(500, 500))
         collages.append(collage)
-        # collage.save(f"collage_{i//16+1}.jpg")
 
-    selected = mllm_select_images_gpt(collages, model="gpt-4.1")
+    ref_images = [(img, idx+1) for idx, (img, _) in enumerate(reference_list)]
+    collage_ref = create_collage_with_padding(ref_images, rows=3, cols=3, thumb_size=(500, 500))
+    collages.append(collage_ref)
 
-    # 예: GPT 응답 "3,5,8"
-    selected_idxs = [int(x.strip()) for x in selected.split(",")]
+
+    selected = mllm_select_images_gpt(collages=collages,num_ref=len(reference_list),model="gpt-4.1",collage_ref=collage_ref)
+
+    selected_idxs = [int(x.strip()) for x in selected.split(",") if x.strip().isdigit()]
 
     # 원래 ID로 매핑
-    # 튜플에서 idx가 일치하는 항목의 id 추출
     selected_ids = [id_ for img, id_, idx in indexed_images if idx in selected_idxs]
 
     return selected_ids
+

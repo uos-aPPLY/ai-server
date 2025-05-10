@@ -8,3 +8,13 @@ python-multipart>=0.0.20
 pillow>=11.2.1
 
 openai>=1.77.0
+
+# # 추가 라이브러리 (가볍게 유지)
+# numpy>=1.26.4
+# pandas>=2.2.2
+# scikit-learn>=1.4.2
+
+# pytorch-lightning>=2.2.4
+
+# # OpenAI의 공식 CLIP 모델 로더는 Git에서 설치 필요 (clip-by-openai)
+# git+https://github.com/openai/CLIP.git
