@@ -8,7 +8,7 @@ python-multipart>=0.0.20
 pillow>=11.2.1
 
 openai>=1.77.0
-
+google-generativeai>=0.8.5
 # # 추가 라이브러리 (가볍게 유지)
 # numpy>=1.26.4
 # pandas>=2.2.2

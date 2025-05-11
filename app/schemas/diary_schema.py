@@ -18,3 +18,10 @@ class DiaryResponse(BaseModel):
 
     class Config:
         from_attributes  = True
+
+class DiaryModifyRequest(BaseModel):
+    user_speech: str
+    diary: str
+    modify_lines: List[int]
+    user_request: str
+    emoji: str
