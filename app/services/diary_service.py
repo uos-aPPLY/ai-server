@@ -205,16 +205,16 @@ async def generate_diary_by_ai(
         return DiaryResponse(diary=diary_text.strip(), emoji=emoji.strip())
     except openai.APIConnectionError as e:
         logger.error(f"[OpenAI 연결 오류] {e}")
-        return "OpenAI API 서버에 연결할 수 없습니다."
+        raise RuntimeError("API_CONNECTION_ERROR") from e
     except openai.RateLimitError as e:
         logger.error(f"[할당량 초과] {e}")
-        return "OpenAI API 사용량 초과입니다."
+        raise RuntimeError("RATE_LIMIT") from e
     except openai.APIStatusError as e:
-        logger.error(f"[API 상태 오류] 상태 코드: {e.status_code} - {e.response}")
-        return f"API 오류 발생: 상태 코드 {e.status_code}"
+        logger.error(f"[API 상태 오류] {e.status_code}")
+        raise RuntimeError(f"API_STATUS_{e.status_code}") from e
     except Exception as e:
         logger.exception(f"[예상치 못한 오류] {e}")
-        return "일기 생성 중 알 수 없는 오류가 발생했습니다."
+        raise RuntimeError("UNKNOWN_ERROR") from e
 
 def generate_diary_modify_prompt(user_speech: str, diary: str, user_request : str) -> str:
     """
@@ -248,6 +248,17 @@ Your job is to edit only the parts explicitly requested by the user, while leavi
 - The user may mark the specific portion they want to modify using @...@. Focus your editing effort on those marked sections.
 - Make sure to REMOVE all @ symbols in the final output. They should not appear in the revised diary.
 
+<Additional Task – Emoji Classification>
+After writing the diary entry, analyze the overall emotional tone and classify it with one of the following emoji names that best represents the **dominant mood** of the entire diary:
+
+- **happy** – bright, joyful, light-hearted mood  
+- **smile** – calm contentment or warmth  
+- **cool** – confident, relaxed, stylish tone  
+- **angry** – irritation, disappointment, or frustration  
+- **sneaky** – mischievous, playful, cheeky tone  
+- **annoyed** – annoyed, sulky, displeased tone  
+- **proud** – self-reflective achievement, confidence, or pride  
+
 [USER SPEECH]
 Here is a sample of how the user normally speaks or writes:
 {user_speech}
@@ -260,8 +271,8 @@ User Request (in Korean):
 {user_request}
 
 [OUTPUT]
-Please output ONLY the final revised diary in Korean, without any labels, prefixes, or explanations.
-⚠️ Output must include the FULL revised diary entry, not just the modified portions.
+Please output the result in the following format:
+[Korean Revised diary text], [EmojiName]
 """
     return prompt
 
@@ -271,25 +282,37 @@ async def modify_diary(req : DiaryModifyRequest) -> DiaryResponse:
     """
     logger.info("[일기 수정 요청 수신됨]")
     try:
-        marked_diary = mark_by_sentence_indices(req.diary, req.modify_lines)
+        # marked_diary = mark_by_sentence_indices(req.diary, req.modify_lines)
         
         prompt = generate_diary_modify_prompt(
             user_speech=req.user_speech,
-            diary=marked_diary,
+            diary=req.diary,
             user_request=req.user_request
         )
         response = model.generate_content(prompt)
+
+        # 결과 파싱
+        output = response.text.strip()
+        # 마지막 단어를 이모지로 떼고 나머지를 일기로 처리
+        tokens = output.strip().rsplit(" ", 1)
+        if len(tokens) == 2:
+            diary_text, emoji = tokens
+            if diary_text.endswith(","):
+                diary_text = diary_text[:-1].strip()
+        else:
+            diary_text = output
+            emoji = "Unknown"
         
-        return DiaryResponse(diary = response.text, emoji = req.emoji)
+        return DiaryResponse(diary = diary_text, emoji =emoji )
     except openai.APIConnectionError as e:
         logger.error(f"[OpenAI 연결 오류] {e}")
-        return DiaryResponse(diary = "OpenAI API 서버에 연결할 수 없습니다.", emoji = req.emoji)
+        raise RuntimeError("API_CONNECTION_ERROR") from e
     except openai.RateLimitError as e:
         logger.error(f"[할당량 초과] {e}")
-        return DiaryResponse(diary = "OpenAI API 사용량 초과입니다.", emoji = req.emoji)
+        raise RuntimeError("RATE_LIMIT") from e
     except openai.APIStatusError as e:
-        logger.error(f"[API 상태 오류] 상태 코드: {e.status_code} - {e.response}")
-        return DiaryResponse(diary = f"API 오류 발생: 상태 코드 {e.status_code}", emoji = req.emoji)
+        logger.error(f"[API 상태 오류] {e.status_code}")
+        raise RuntimeError(f"API_STATUS_{e.status_code}") from e
     except Exception as e:
         logger.exception(f"[예상치 못한 오류] {e}")
-        return DiaryResponse(diary = "일기 수정 중 알 수 없는 오류가 발생했습니다.", emoji = req.emoji)
+        raise RuntimeError("UNKNOWN_ERROR") from e

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 
 class PhotoItem(BaseModel):
@@ -20,8 +20,6 @@ class DiaryResponse(BaseModel):
         from_attributes  = True
 
 class DiaryModifyRequest(BaseModel):
-    user_speech: str
+    user_speech: str = Field(..., alias="userSpeech")
     diary: str
-    modify_lines: List[int]
-    user_request: str
-    emoji: str
+    user_request: str = Field(..., alias="userRequest")

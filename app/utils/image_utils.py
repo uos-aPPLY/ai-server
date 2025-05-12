@@ -85,12 +85,12 @@ def build_message(prompt: str, images, collage_ref=None):
         msg[0]["content"].append({"type":"input_image","image_url":data_url})
     return msg
 
-# 1. 비동기로 이미지 다운로드
-async def fetch_image(photo):
-    async with aiohttp.ClientSession() as session:
-        async with session.get(str(photo.photoUrl)) as resp:
-            content = await resp.read()
-            return (content, photo.id)
+# # 1. 비동기로 이미지 다운로드
+# async def fetch_image(photo):
+#     async with aiohttp.ClientSession() as session:
+#         async with session.get(str(photo.photoUrl)) as resp:
+#             content = await resp.read()
+#             return (content, photo.id)
 
 # 2. 병렬로 이미지 디코딩 (CPU-bound)
 def decode_image(content_and_id):
@@ -98,15 +98,31 @@ def decode_image(content_and_id):
     img = Image.open(BytesIO(content)).convert("RGB")
     return (img, id_)
 
-# 3. 전체 처리 함수
-async def load_and_decode_images(photo_list):
-    # Step 1: async 다운로드
-    tasks = [fetch_image(photo) for photo in photo_list]
-    contents = await asyncio.gather(*tasks)
+# # 3. 전체 처리 함수
+# async def load_and_decode_images(photo_list):
+#     # Step 1: async 다운로드
+#     tasks = [fetch_image(photo) for photo in photo_list]
+#     contents = await asyncio.gather(*tasks)
 
-    # Step 2: 병렬 디코딩
+#     # Step 2: 병렬 디코딩
+#     with ProcessPoolExecutor() as executor:
+#         decoded = list(executor.map(decode_image, contents))
+
+#     return decoded
+
+async def fetch_image(photo, session):
+    async with session.get(str(photo.photoUrl)) as resp:
+        logger.info(f"이미지 요청: {photo.id}")
+        content = await resp.read()
+        return (content, photo.id)
+
+async def load_and_decode_images(photo_list):
+    async with aiohttp.ClientSession() as session:
+        tasks = [fetch_image(photo, session) for photo in photo_list]
+        contents = await asyncio.gather(*tasks)
+
     with ProcessPoolExecutor() as executor:
         decoded = list(executor.map(decode_image, contents))
-
     return decoded
+
 

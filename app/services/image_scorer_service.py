@@ -117,7 +117,6 @@ async def score_images(request: ImageScoringRequest):
         else: # 100장 이하일 경우 동기 처리
             images_list = load_images_from_urls(request.images)
             reference_list = load_images_from_urls(request.reference_images) if request.reference_images else []
-            
         # ID ↔ 번호 매핑
         indexed_images = []
         for idx, (img, id_) in enumerate(images_list, start=1):
