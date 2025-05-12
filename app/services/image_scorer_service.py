@@ -110,6 +110,10 @@ async def score_images(request: ImageScoringRequest):
     """
     logger.info("이미지 스코어링 요청 수신됨")
     try:
+        if request.reference_images:
+            reference_ids = {photo.id for photo in request.reference_images}
+            request.images = [photo for photo in request.images if photo.id not in reference_ids]
+
         # 이미지 불러오기
         if(len(request.images)>100): # 100장 이상일 경우 비동기 처리
             images_list = await load_and_decode_images(request.images)
