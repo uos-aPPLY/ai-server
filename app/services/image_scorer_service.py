@@ -5,7 +5,7 @@ from app.utils.image_utils import (
     create_reference_collage,
     build_message
 )
-from app.schemas.image_schema import ImageScoringRequest
+from app.schemas.image_schema import ImageScoringRequest, ImageScoringResponse
 from app.core.config import client
 from app.core.logger import logger
 
@@ -142,7 +142,9 @@ async def score_images(request: ImageScoringRequest):
         # 원래 ID로 매핑
         selected_ids = [id_ for img, id_, idx in indexed_images if idx in selected_idxs]
 
-        return selected_ids
+        return ImageScoringResponse(
+            recommendedPhotoIds=selected_ids
+        )
     except Exception as e:
         logger.error(f"이미지 스코어링 중 오류 발생: {e}")
         return {"error": str(e)}
