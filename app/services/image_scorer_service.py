@@ -147,4 +147,6 @@ async def score_images(request: ImageScoringRequest):
         )
     except Exception as e:
         logger.error(f"이미지 스코어링 중 오류 발생: {e}")
-        return {"error": str(e)}
+        return ImageScoringResponse(
+            recommendedPhotoIds=[]
+        )
