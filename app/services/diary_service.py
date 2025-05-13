@@ -34,7 +34,7 @@ def convert_image_to_base64(image_path: str, target_width: int = 800) -> str:
 
         # base64 인코딩
         buffered = io.BytesIO()
-        resized_img.save(buffered, format="JPEG")
+        resized_img.save(buffered, format="PNG")
         return base64.b64encode(buffered.getvalue()).decode("utf-8")
     except Exception as e:
         logger.error(f"[이미지 처리 실패] {image_path} - {e}")
