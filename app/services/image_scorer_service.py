@@ -3,11 +3,13 @@ from app.utils.image_utils import (
     load_and_decode_images,
     create_collage_with_padding,
     create_reference_collage,
-    build_message
+    build_message,
+    build_message_gemini
 )
 from app.schemas.image_schema import ImageScoringRequest, ImageScoringResponse
 from app.core.config import client
 from app.core.logger import logger
+from app.core.config import model
 
 MLLM_SCORING_PROMPT = """You are given a sequence of images.
 
@@ -15,21 +17,23 @@ MLLM_SCORING_PROMPT = """You are given a sequence of images.
 - The remaining images are part of one or more **4×4 collages**, each image labeled with a red number in the upper-left corner.
 - You must select only from the collage images (i.e., excluding the reference images).
 
-Your task is to evaluate all collage images (excluding the reference images), and select the **top {top_k} images** that are both:
-1. The aesthetic quality of the image.
-2. Its visual dissimilarity from the reference images (i.e., images too similar to any reference image must be rated lower).
+Your task is to evaluate all collage images (excluding the reference images), and select exactly **{top_k} images** that are both:
+1. Aesthetically pleasing.
+2. Visually diverse and not too similar to any reference image.
 
-<Rules>
-1. Do **not** select images that are visually similar (≥75%) to any reference image.
-2. Select images that are both aesthetically pleasing and visually distinct from the reference images.
-3. Aesthetically pleasing images should:
+<Rules – Priority Order>
+1. You must select **exactly {top_k} images**, no more, no less. This is the most important rule.
+2. Select images that are visually diverse in subject, style, or composition, and avoid those that are overly similar to any reference image.
+3. Avoid selecting images that are visually similar (≥75%) to any **reference image**.
+4. Select images that are both **aesthetically pleasing** and **visually distinct**.
+5. Aesthetically pleasing images should:
    - Be sharp and in clear focus.
    - Be high-resolution and high-quality.
    - Have a well-balanced composition.
    - Have natural lighting with good contrast and proper exposure.
    - Present a harmonious color scheme and emotionally appealing atmosphere.
-4. Consider diversity of subject matter (e.g., landscapes, portraits, food, architecture, etc.).
-5. Choose the {top_k} best images based on overall quality and uniqueness from the reference images.
+6. Consider **diversity of subject matter** (e.g., landscapes, portraits, food, architecture, etc.).
+7. Choose the {top_k} best images based on overall quality and uniqueness.
 
 ⚠️ You **must evaluate every single image in the collage(s)** (excluding the reference images).  
 Do **not** skip or ignore any images.
@@ -48,27 +52,36 @@ image_number, image_number, image_number
 - Any explanation
 - Any formatting other than the one shown above
 
-Return only the **top {top_k} image numbers** from the collage images. (excluding reference images).
+❗ Even if many images are visually similar or duplicated,
+   YOU MUST STILL OUTPUT *exactly {top_k} image numbers*.
+   Duplicated photos still count as separate candidates.
+   If necessary, rank duplicates lower but do NOT omit them –
+   select the best {top_k} overall.
+
+Return **exactly {top_k} image numbers** from the collage images. (excluding reference images).
 """
 
 NO_REF_PROMPT = """You are given a sequence of images.
 
 - The remaining images are part of one or more **4×4 collages**, each image labeled with a red number in the upper-left corner.
 
-Your task is to evaluate all collage images, and select the **top 9 images** that are both:
-1. The aesthetic quality of the image.
-2. Its visual distinctiveness from other images.
+Your task is to evaluate all collage images (excluding the reference images), and select exactly **9 images** that are both:
+1. Aesthetically pleasing.
+2. Visually diverse and not too similar to any reference image.
 
-<Rules>
-1. Select images that are both aesthetically pleasing and visually distinct.
-2. Aesthetically pleasing images should:
+<Rules – Priority Order>
+1. You must select **exactly 9 images**, no more, no less. This is the most important rule.
+2. Select images that are visually diverse in subject, style, or composition, and avoid those that are overly similar to any reference image.
+3. Avoid selecting images that are visually similar (≥75%) to any **reference image**.
+4. Select images that are both **aesthetically pleasing** and **visually distinct**.
+5. Aesthetically pleasing images should:
    - Be sharp and in clear focus.
    - Be high-resolution and high-quality.
    - Have a well-balanced composition.
    - Have natural lighting with good contrast and proper exposure.
    - Present a harmonious color scheme and emotionally appealing atmosphere.
-3. Consider diversity of subject matter (e.g., landscapes, portraits, food, architecture, etc.).
-4. Choose the 9 best images based on overall quality and uniqueness
+6. Consider **diversity of subject matter** (e.g., landscapes, portraits, food, architecture, etc.).
+7. Choose the **9** best images based on overall quality and uniqueness.
 
 ⚠️ You **must evaluate every single image in the collage(s)**.  
 Do **not** skip or ignore any images.
@@ -87,7 +100,13 @@ image_number, image_number, image_number
 - Any explanation
 - Any formatting other than the one shown above
 
-Return only the **top 9 image numbers** from the collage images.
+❗ Even if many images are visually similar or duplicated,
+   YOU MUST STILL OUTPUT *exactly 9 image numbers*.
+   Duplicated photos still count as separate candidates.
+   If necessary, rank duplicates lower but do NOT omit them –
+   select the best 9 overall.
+
+Return **exactly 9 image numbers** from the collage images. (excluding reference images).
 """
 
 
@@ -103,6 +122,10 @@ def mllm_select_images_gpt(collages, num_ref, model="gpt-4.1", collage_ref=None)
     resp = client.responses.create(model=model, input=message)
     return resp.output[0].content[0].text
 
+def mllm_select_images_gemini(collages, num_ref, collage_ref = None):
+    message = build_message_gemini(generate_scoring_prompt(num_ref), collages, collage_ref)
+    resp = model.generate_content(message)
+    return resp.text
 
 async def score_images(request: ImageScoringRequest):
     """
@@ -140,11 +163,15 @@ async def score_images(request: ImageScoringRequest):
 
         selected = mllm_select_images_gpt(collages=collages,num_ref=len(reference_list),model="gpt-4.1",collage_ref=collage_ref)
 
+        # selected = mllm_select_images_gemini(collages=collages, num_ref=len(reference_list), collage_ref=collage_ref)
+
         selected_idxs = [int(x.strip()) for x in selected.split(",") if x.strip().isdigit()]
 
         # 원래 ID로 매핑
         selected_ids = [id_ for img, id_, idx in indexed_images if idx in selected_idxs]
 
+        print(repr(selected))          # Gemini가 쉼표/줄바꿈 혼용했나?
+        print(len(selected_idxs))      # 파싱 후 실제 개수
         return ImageScoringResponse(
             recommendedPhotoIds=selected_ids
         )

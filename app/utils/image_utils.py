@@ -75,15 +75,18 @@ def build_message(prompt: str, images, collage_ref=None):
     msg = [{"role":"user", "content":[{"type":"input_text", "text":prompt}]}]
     if collage_ref:
         buffer = BytesIO()
-        collage_ref.save(buffer, format="JPEG")
-        data_url = "data:image/jpeg;base64," + base64.b64encode(buffer.getvalue()).decode()
+        collage_ref.save(buffer, format="PNG")
+        data_url = "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
         msg[0]["content"].append({"type":"input_image","image_url":data_url})
     for img in images:
         buffer = BytesIO()
-        img.save(buffer, format="JPEG")
-        data_url = "data:image/jpeg;base64," + base64.b64encode(buffer.getvalue()).decode()
+        img.save(buffer, format="PNG")
+        data_url = "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
         msg[0]["content"].append({"type":"input_image","image_url":data_url})
     return msg
+
+def build_message_gemini(prompt: str, images, collage_ref=None):
+    return prompt
 
 # # 1. 비동기로 이미지 다운로드
 # async def fetch_image(photo):
