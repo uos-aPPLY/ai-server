@@ -299,9 +299,10 @@ async def modify_diary(req : DiaryModifyRequest) -> DiaryResponse:
             diary_text, emoji = tokens
             if diary_text.endswith(","):
                 diary_text = diary_text[:-1].strip()
+            emoji = emoji.lower()
         else:
             diary_text = output
-            emoji = "Unknown"
+            emoji = "unknown"
         
         return DiaryResponse(diary = diary_text, emoji =emoji )
     except openai.APIConnectionError as e:
