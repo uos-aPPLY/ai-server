@@ -43,8 +43,6 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd /home/ubuntu/diarypic
-            # aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }} # (EC2 인스턴스 프로파일 권한 시 생략 가능)
             docker-compose pull ai-server
             docker-compose up -d --force-recreate ai-server
             docker image prune -f
