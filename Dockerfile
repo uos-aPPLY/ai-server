@@ -1,19 +1,25 @@
-FROM python:3.11-slim
-# Set environment variables
+# ── 1단계: Builder ─────────────────────────────────
+FROM python:3.11-slim-bookworm AS builder
+ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
+WORKDIR /build
 
+# 빌드 툴만 일시적으로
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends build-essential git \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --prefix=/install -r requirements.txt
+
+COPY . .
+
+# ── 2단계: Runtime (Distroless) ────────────────────
+FROM gcr.io/distroless/python3-debian12
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+# 빌드 단계에서 설치된 라이브러리만 복사
+COPY --from=builder /install /usr/local
+COPY --from=builder /build /app
 
-# # torch 설치 (CPU 전용)
-# RUN pip install --no-cache-dir \
-#   torch==2.2.2+cpu torchvision==0.17.2+cpu torchaudio==2.2.2+cpu \
-#   --extra-index-url https://download.pytorch.org/whl/cpu
-# Install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . . 
-
-# Run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# distroless에는 쉘이 없으므로 python -m 방식
+CMD ["python3","-m","uvicorn","app.main:app","--host","0.0.0.0","--port","8000"]
