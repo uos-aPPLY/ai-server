@@ -454,7 +454,7 @@ async def modify_diary(req : DiaryModifyRequest) -> DiaryResponse:
     try:
         # marked_diary = mark_by_sentence_indices(req.diary, req.modify_lines)
         
-        prompt = generate_diary_modify_prompt(
+        prompt = await generate_diary_modify_prompt(
             user_speech=req.user_speech,
             diary=req.diary,
             user_request=req.user_request
