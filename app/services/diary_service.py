@@ -202,7 +202,7 @@ async def generate_diary_by_ai(
             diary_text = output
             emoji = "Unknown"
 
-        return DiaryResponse(diary=diary_text.strip(), emoji=emoji.strip())
+        return DiaryResponse(diary=diary_text.strip(), emoji=emoji.strip().lower())
     except openai.APIConnectionError as e:
         logger.error(f"[OpenAI 연결 오류] {e}")
         raise RuntimeError("API_CONNECTION_ERROR") from e
