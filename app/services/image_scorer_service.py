@@ -117,12 +117,12 @@ def generate_scoring_prompt(num_reference: int) -> str:
         return MLLM_SCORING_PROMPT.format(num_reference=num_reference, top_k=9-num_reference)
 
 # GPT 이미지 선택 함수
-def mllm_select_images_gpt(collages, num_ref, model="gpt-4.1", collage_ref=None):
+async def mllm_select_images_gpt(collages, num_ref, model="gpt-4.1", collage_ref=None):
     message = build_message(generate_scoring_prompt(num_ref), collages, collage_ref)
     resp = client.responses.create(model=model, input=message)
     return resp.output[0].content[0].text
 
-def mllm_select_images_gemini(collages, num_ref, collage_ref = None):
+async def mllm_select_images_gemini(collages, num_ref, collage_ref = None):
     message = build_message_gemini(generate_scoring_prompt(num_ref), collages, collage_ref)
     resp = model.generate_content(message)
     return resp.text
@@ -138,13 +138,13 @@ async def score_images(request: ImageScoringRequest):
             request.images = [photo for photo in request.images if photo.id not in reference_ids]
 
         # 이미지 불러오기
-        if(len(request.images)>100): # 100장 이상일 경우 비동기 처리
-            images_list = await load_and_decode_images(request.images)
-            reference_list = load_images_from_urls(request.reference_images) if request.reference_images else []
-        else: # 100장 이하일 경우 동기 처리
-            images_list = load_images_from_urls(request.images)
-            reference_list = load_images_from_urls(request.reference_images) if request.reference_images else []
-        # ID ↔ 번호 매핑
+        # if(len(request.images)>100): # 100장 이상일 경우 비동기 처리
+        images_list = await load_and_decode_images(request.images)
+        reference_list = await load_and_decode_images(request.reference_images) if request.reference_images else []
+        # else: # 100장 이하일 경우 동기 처리
+        #     images_list = load_images_from_urls(request.images)
+        #     reference_list = load_images_from_urls(request.reference_images) if request.reference_images else []
+        # # ID ↔ 번호 매핑
         indexed_images = []
         for idx, (img, id_) in enumerate(images_list, start=1):
             indexed_images.append((img, id_, idx))
@@ -161,7 +161,7 @@ async def score_images(request: ImageScoringRequest):
             collages.append(collage_ref)
 
 
-        selected = mllm_select_images_gpt(collages=collages,num_ref=len(reference_list),model="gpt-4.1",collage_ref=collage_ref)
+        selected = await mllm_select_images_gpt(collages=collages,num_ref=len(reference_list),model="gpt-4.1",collage_ref=collage_ref)
 
         # selected = mllm_select_images_gemini(collages=collages, num_ref=len(reference_list), collage_ref=collage_ref)
 
