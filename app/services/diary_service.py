@@ -14,7 +14,7 @@ from app.utils.diary_utils import mark_by_sentence_indices
 
 load_dotenv()
 
-def convert_image_to_base64(image_path: str, target_width: int = 800) -> str:
+async def convert_image_to_base64(image_path: str, target_width: int = 800) -> str:
     """
     Resize the image to target_width while maintaining aspect ratio,
     then convert it to a base64 string.
@@ -40,7 +40,32 @@ def convert_image_to_base64(image_path: str, target_width: int = 800) -> str:
         logger.error(f"[이미지 처리 실패] {image_path} - {e}")
         raise
 
-def generate_diary_prompt(user_speech: str, image_information: str) -> str:
+async def generate_emotion_prompt(diary: str) -> str:
+    """
+    Generate a prompt for classifying the emotional tone of a diary entry.
+    """
+    return  f"""You are analyzing the following diary to determine its dominant emotional tone.
+
+First, identify all **emotionally expressive segments**, especially those that involve strong reactions such as frustration, excitement, pride, or discomfort. Pay particular attention to phrases where emotions are directly or indirectly revealed (e.g., “귀 쏙 들어갈 뻔”, “기분이 너무 좋아서”, “머리 찡했다”).
+
+Then, among the following labels, choose the **single label that best reflects the dominant emotional tone**, giving **priority to the strongest emotional expressions**, even if they appear later in the diary.
+
+Label options:
+- **happy**
+- **smile**
+- **cool** 
+- **proud** 
+- **sneaky**  
+- **annoyed**
+- **angry** 
+
+
+Diary content : {diary}
+
+Do not include any headings, explanations, or line breaks.
+Only return the label."""
+
+async def generate_diary_prompt(user_speech: str, image_information: str) -> str:
     """
     Generate a diary entry prompt based on user speech and image information.
     """
@@ -67,10 +92,11 @@ After writing the diary entry, analyze the overall emotional tone and classify i
 - **happy** – bright, joyful, light-hearted mood  
 - **smile** – calm contentment or warmth  
 - **cool** – confident, relaxed, stylish tone  
-- **angry** – irritation, disappointment, or frustration  
+- **proud** – self-reflective achievement, confidence, or pride  
 - **sneaky** – mischievous, playful, cheeky tone  
 - **annoyed** – annoyed, sulky, displeased tone  
-- **proud** – self-reflective achievement, confidence, or pride  
+- **angry** – irritation, disappointment, or frustration  
+
 
 Return the result in the following format (Korean diary only, no explanation):
 
@@ -133,7 +159,88 @@ Avoid direct reuse of any phrases. Instead, match the **vibe, pacing, emotional 
 - Do not include any headings, explanations, or line breaks. Only return the diary and the emoji name, separated by a comma.
 """
 
-def convert_image_info_to_text(image_info: List[PhotoItem]) -> str:
+async def generate_diary_without_emoji_prompt(user_speech: str, image_information: str) -> str:
+    """
+    Generate a diary entry prompt based on user speech and image information.
+    """
+    return f"""
+You are a Korean diary writer generating a heartfelt, vivid, and flowing journal entry based on a **series of travel photos** and the user’s typical way of speaking.
+
+<Task>
+You are given a series of images (provided in chronological order), along with <Image Information> describing each image’s date, location, and focus elements (e.g., people, food, landscape).
+
+Your task is to write a **single cohesive diary entry in Korean** that:
+
+- Describes the **visual and emotional atmosphere** of each image in the order given  
+- Emulates the **style, tone, and rhythm** of the user’s typical speech (see <User Speech>)  
+- Incorporates **every “focus” element** mentioned per image (e.g., if “인물, 음식” are listed, both must appear clearly in the text)  
+- Ensures **each image** is reflected in **at least 2–3 detailed and sensory-rich sentences**  
+- Forms a **natural, continuous narrative**, not a segmented list or a bullet-pointed summary  
+- Reads like a genuine, thoughtful diary entry written by the user at the end of a memorable day
+
+</Task>
+
+Return the result in the following format (Korean diary only, no explanation):
+
+**일기 내용**
+
+<User Speech>
+Here is a sample of how the user normally speaks or writes:
+{user_speech}
+</User Speech>
+
+
+<Style Emulation Checklist>
+Analyze the user’s speech above and determine:
+- Sentence endings (formal/informal, length)
+- Emoji and punctuation style
+- Use of exclamations, sound words, and repetition
+- Emotional tone (joyful, reflective, frustrated, etc.)
+- Sentence rhythm and structure
+
+Then write the diary by applying these features. Keep the writing consistent with the user's tone and expressive habits.
+</Style Emulation Checklist>
+
+
+<Tone Adaptation Guide>
+Mimic the user’s voice by carefully reflecting their tone, rhythm, and style. For example:
+- If the user writes calmly and reflectively → use a gentle, introspective tone
+- If they use emojis, exclamations, or slang → write playfully and casually
+- If their writing is short and direct → keep sentences compact and expressive
+- If they are emotionally introspective → show internal emotion and thought process
+
+Avoid direct reuse of any phrases. Instead, match the **vibe, pacing, emotional weight, and structure** of their speech.
+
+<Image Information>
+{image_information}
+
+<Detail Guidelines>
+- Each image should inspire **at least 2–3 full sentences** with sensory, emotional, or visual descriptions  
+- Include all “focus” elements mentioned:  
+    - For 음식 (food): name, color, taste, smell, situation  
+    - For 인물 (people): expression, actions, conversation  
+    - For 풍경 (landscape): color, light, movement, mood  
+- Do not skip or compress any image’s content. All should feel equally represented  
+- You may blend the transitions naturally, but **each scene must feel alive and distinct**
+- **If location names are written in Chinese or English or else, rewrite them naturally in Korean.**  
+  (e.g., “青岛啤酒博物馆” → “칭다오 맥주 박물관”, “古镇路” → “구전루”)  
+  Avoid using raw Chinese characters or foreign spelling unless commonly used in Korean.
+
+<Format Rules>
+- Write **entirely in Korean**
+- Produce **one unified diary entry** (not separate blocks per image)
+- If any image’s date/location is missing or odd, ignore it smoothly and focus on the visual content
+- At the end, output **only the diary entry text.**  
+- Do not include section titles, explanations, or extra commentary
+
+<Output Format>
+- You must return a single line in the following format:
+  "Korean diary text"
+- Do not include any headings, explanations, or line breaks. Only return the diary.
+"""
+
+
+async def convert_image_info_to_text(image_info: List[PhotoItem]) -> str:
     """
     Convert image information to a formatted string.
     """
@@ -146,7 +253,7 @@ def convert_image_info_to_text(image_info: List[PhotoItem]) -> str:
         for i, img in enumerate(image_info)
     )
 
-def build_message(prompt: str, images: List[PhotoItem]) -> str:
+async def build_message(prompt: str, images: List[PhotoItem]) -> str:
     """
     Generate the input message for the AI model.
     """
@@ -161,7 +268,7 @@ def build_message(prompt: str, images: List[PhotoItem]) -> str:
 
     for i in images:
         try:
-            image = convert_image_to_base64(i.photoUrl)
+            image = await convert_image_to_base64(i.photoUrl)
             message[0]["content"].append(
                         {
                             "type": "input_image", 
@@ -173,6 +280,30 @@ def build_message(prompt: str, images: List[PhotoItem]) -> str:
             raise
     return message
 
+
+async def build_gemini_message(prompt: str, images: List[str]) -> List[dict]:
+    parts = [{"text": prompt}]
+    
+    for i in images:
+        try:
+            img_base64 = await convert_image_to_base64(i.photoUrl)
+            parts.append({
+                "inline_data": {
+                    "mime_type": "image/jpeg",
+                    "data": img_base64
+                }
+            })
+        except Exception as e:
+            logger.error(f"이미지 처리 실패: {i.photoUrl} - {e}")
+            raise
+
+    return [
+        {
+            "role": "user",
+            "parts": parts
+        }
+    ]
+
 async def generate_diary_by_ai(
     req: DiaryRequest
 )-> DiaryResponse:
@@ -181,9 +312,20 @@ async def generate_diary_by_ai(
     """
     logger.info("[일기 생성 요청 수신됨]")
     try:
-        image_info_text = convert_image_info_to_text(req.image_info)
-        prompt = generate_diary_prompt(user_speech=req.user_speech, image_information=image_info_text)
-        message = build_message(prompt=prompt, images=req.image_info)
+        image_info_text = await convert_image_info_to_text(req.image_info)
+        # prompt = generate_diary_prompt(user_speech=req.user_speech, image_information=image_info_text)
+        # message = build_message(prompt=prompt, images=req.image_info)
+
+        # # GPT-4o 멀티모달 호출
+        # response = client.responses.create(
+        #     model="gpt-4.1",
+        #     input=message
+        # )
+        # # 결과 파싱
+        # output = response.output_text.strip()
+
+        prompt = await generate_diary_without_emoji_prompt(user_speech=req.user_speech, image_information=image_info_text)
+        message = await build_message(prompt=prompt, images=req.image_info)
 
         # GPT-4o 멀티모달 호출
         response = client.responses.create(
@@ -192,17 +334,45 @@ async def generate_diary_by_ai(
         )
         # 결과 파싱
         output = response.output_text.strip()
-        # 마지막 단어를 이모지로 떼고 나머지를 일기로 처리
-        tokens = output.strip().rsplit(" ", 1)
-        if len(tokens) == 2:
-            diary_text, emoji = tokens
-            if diary_text.endswith(","):
-                diary_text = diary_text[:-1].strip()
-        else:
-            diary_text = output
-            emoji = "Unknown"
 
-        return DiaryResponse(diary=diary_text.strip(), emoji=emoji.strip().lower())
+        message = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "input_text", "text": await generate_emotion_prompt(output)},
+                ],
+            }
+        ]
+
+        emoji = client.responses.create(
+            model="gpt-4.1-nano",
+            input=message
+        )
+        emoji = emoji.output_text.strip().lower()
+
+        return DiaryResponse(diary=output.strip(), emoji=emoji.strip().lower())
+
+        # # Gemini 호출
+        # prompt = generate_diary_prompt(
+        #     user_speech=req.user_speech,
+        #     image_information=image_info_text
+        # )
+        # message = build_gemini_message(prompt=prompt, images=req.image_info)
+        # response = model.generate_content(message)
+        # output = response.text.strip()
+
+
+        # # 마지막 단어를 이모지로 떼고 나머지를 일기로 처리
+        # tokens = output.strip().rsplit(" ", 1)
+        # if len(tokens) == 2:
+        #     diary_text, emoji = tokens
+        #     if diary_text.endswith(","):
+        #         diary_text = diary_text[:-1].strip()
+        # else:
+        #     diary_text = output
+        #     emoji = "Unknown"
+
+        # return DiaryResponse(diary=diary_text.strip(), emoji=emoji.strip().lower())
     except openai.APIConnectionError as e:
         logger.error(f"[OpenAI 연결 오류] {e}")
         raise RuntimeError("API_CONNECTION_ERROR") from e
@@ -216,7 +386,7 @@ async def generate_diary_by_ai(
         logger.exception(f"[예상치 못한 오류] {e}")
         raise RuntimeError("UNKNOWN_ERROR") from e
 
-def generate_diary_modify_prompt(user_speech: str, diary: str, user_request : str) -> str:
+async def generate_diary_modify_prompt(user_speech: str, diary: str, user_request : str) -> str:
     """
     Generate a diary modification prompt based on user speech, existing diary, and user request.
     """
