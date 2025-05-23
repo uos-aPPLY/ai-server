@@ -51,6 +51,8 @@ First, identify all **emotionally expressive segments**, especially those that i
 Then, among the following labels, choose the **single label that best reflects the dominant emotional tone**, giving **priority to the strongest emotional expressions**, even if they appear later in the diary.
 
 Label options:
+- **love**
+- **depression**
 - **happy**
 - **smile**
 - **cool** 
