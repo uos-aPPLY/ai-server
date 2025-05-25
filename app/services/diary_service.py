@@ -444,7 +444,13 @@ User Request (in Korean):
 
 [OUTPUT]
 Please output the result in the following format:
-[Korean Revised diary text], [EmojiName]
+<DIARY>
+(한국어로 수정된 일기 내용)
+</DIARY>
+
+<EMOTION>
+(이모지 이름: happy, smile, angry 등)
+</EMOTION>
 """
     return prompt
 
@@ -465,17 +471,34 @@ async def modify_diary(req : DiaryModifyRequest) -> DiaryResponse:
 
         # 결과 파싱
         output = response.text.strip()
-        # 마지막 단어를 이모지로 떼고 나머지를 일기로 처리
-        tokens = output.strip().rsplit(" ", 1)
-        if len(tokens) == 2:
-            diary_text, emoji = tokens
-            if diary_text.endswith(","):
-                diary_text = diary_text[:-1].strip()
-            emoji = emoji.lower()
+        # 명시적 태그를 기준으로 파싱
+        if "<DIARY>" in output and "<EMOTION>" in output:
+            try:
+                # <DIARY> ... </DIARY> 추출
+                diary_start = output.find("<DIARY>") + len("<DIARY>")
+                diary_end = output.find("</DIARY>")
+                diary_text = output[diary_start:diary_end].strip()
+
+                # <EMOTION> ... </EMOTION> 추출
+                emoji_start = output.find("<EMOTION>") + len("<EMOTION>")
+                emoji_end = output.find("</EMOTION>")
+                emoji = output[emoji_start:emoji_end].strip().lower()
+
+            except Exception as e:
+                logger.error(f"[파싱 오류] 형식이 맞지 않습니다: {e}")
+                diary_text = output
+                emoji = "unknown"
         else:
-            diary_text = output
-            emoji = "unknown"
-        
+            logger.warning("[형식 경고] 예상한 <DIARY> / <EMOTION> 태그가 없음. fallback 방식 사용")
+            tokens = output.strip().rsplit(" ", 1)
+            if len(tokens) == 2:
+                diary_text, emoji = tokens
+                if diary_text.endswith(","):
+                    diary_text = diary_text[:-1].strip()
+                emoji = emoji.lower()
+            else:
+                diary_text = output
+                emoji = "unknown"
         return DiaryResponse(diary = diary_text, emoji =emoji )
     except openai.APIConnectionError as e:
         logger.error(f"[OpenAI 연결 오류] {e}")
