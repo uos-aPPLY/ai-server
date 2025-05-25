@@ -352,6 +352,8 @@ async def generate_diary_by_ai(
         )
         emoji = emoji.output_text.strip().lower()
 
+        logger.info(f"[generate 완료] : {output}, {emoji}")
+
         return DiaryResponse(diary=output.strip(), emoji=emoji.strip().lower())
 
         # # Gemini 호출
@@ -499,6 +501,7 @@ async def modify_diary(req : DiaryModifyRequest) -> DiaryResponse:
             else:
                 diary_text = output
                 emoji = "unknown"
+        logger.info(f"[modify 완료] : {diary_text}, {emoji}")
         return DiaryResponse(diary = diary_text, emoji =emoji )
     except openai.APIConnectionError as e:
         logger.error(f"[OpenAI 연결 오류] {e}")

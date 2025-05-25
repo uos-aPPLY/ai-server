@@ -8,6 +8,7 @@ router = APIRouter()
 @router.post("/generate", response_model=DiaryResponse)
 async def generate(req: DiaryRequest) -> DiaryResponse:
     try:
+        logger.info(f"[generate_diary] 요청 수신: {req}")
         return await generate_diary_by_ai(req)
     except RuntimeError as e:
         error_code = str(e)
