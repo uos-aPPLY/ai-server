@@ -246,13 +246,18 @@ async def convert_image_info_to_text(image_info: List[PhotoItem]) -> str:
     """
     Convert image information to a formatted string.
     """
+    sorted_images = sorted(
+        image_info,
+        key=lambda img: (img.sequence is None, img.sequence)
+    )
+
     return "\n\n".join(
         f"""Information about the {i}th entered image:
         Date: {img.shootingDateTime}
         Location: {img.detailedAddress}
         What to look for in a photo: {img.keyword}
         """
-        for i, img in enumerate(image_info)
+        for i, img in enumerate(sorted_images)
     )
 
 async def build_message(prompt: str, images: List[PhotoItem]) -> str:
