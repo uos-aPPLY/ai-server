@@ -165,7 +165,7 @@ async def score_images(request: ImageScoringRequest):
 
         # 원래 ID로 매핑
         selected_ids = [id_ for img, id_, idx in indexed_images if idx in selected_idxs]
-
+        logger.info(f"선택된 이미지 ID: {selected_ids}")
         # # GPT 응답에서 [final output] 이후 텍스트만 추출
         # if "[final output]" in selected:
         #     selected_text = selected.split("[final output]", 1)[1]
