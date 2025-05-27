@@ -39,6 +39,6 @@ jobs:
           key:      ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           script: |
-            docker compose pull ai-server
-            docker compose up -d --wait --force-recreate --remove-orphans ai-server
+            docker-compose pull ai-server
+            docker-compose up -d --wait --force-recreate --remove-orphans ai-server
             docker image prune -f
