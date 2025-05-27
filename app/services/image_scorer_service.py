@@ -120,7 +120,7 @@ def generate_scoring_prompt(num_reference: int) -> str:
         return MLLM_SCORING_PROMPT.format(num_reference=num_reference, top_k=9-num_reference)
 
 # GPT 이미지 선택 함수
-async def mllm_select_images_gpt(collages, num_ref, model="gpt-4.1", collage_ref=None):
+async def mllm_select_images_gpt(collages, num_ref, model="gpt-4o-mini", collage_ref=None):
     message = build_message(generate_scoring_prompt(num_ref), collages, collage_ref)
     resp = client.responses.create(model=model, input=message)
     return resp.output[0].content[0].text
