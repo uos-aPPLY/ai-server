@@ -9,6 +9,12 @@ from concurrent.futures import ProcessPoolExecutor
 from app.schemas.image_schema import PhotoInput
 from app.core.logger import logger
 
+try:
+    # font 크기 키우기
+    FONT = ImageFont.truetype("arial.ttf", 30)
+except IOError:
+    FONT = ImageFont.load_default()
+
 
 def load_images_from_urls(image_urls: List[PhotoInput]):
     loaded = []
@@ -35,14 +41,8 @@ def make_thumbnail_with_padding(img: Image.Image, target_size=(500, 500), bg_col
 # 이미지 좌상단에 숫자 annotation 함수
 def annotate_image(image, number):
     draw = ImageDraw.Draw(image)
-    try:
-        # font 크기 키우기
-        font = ImageFont.truetype("arial.ttf", 30)
-    except IOError:
-        font = ImageFont.load_default()
-    text = str(number)
     # (20, 15)가 이미지 좌상단 좌표, fill=(255, 0, 0)이 RGB, 현재 빨간색
-    draw.text((20, 15), text, fill=(255, 0, 0), font=font)
+    draw.text((20, 15), str(number), fill=(255, 0, 0), font=FONT)
     return image
 
 # 16장씩 묶어 4×4 collage 생성 함수
@@ -120,12 +120,12 @@ async def fetch_image(photo, session):
         return (content, photo.id)
 
 async def load_and_decode_images(photo_list):
-    conn = aiohttp.TCPConnector(limit=10)
+    conn = aiohttp.TCPConnector(limit=15)
     async with aiohttp.ClientSession() as session:
         tasks = [fetch_image(photo, session) for photo in photo_list]
         contents = await asyncio.gather(*tasks)
 
-    with ProcessPoolExecutor() as executor:
+    with ProcessPoolExecutor(max_workers = 4) as executor:
         decoded = list(executor.map(decode_image, contents))
     return decoded
 
