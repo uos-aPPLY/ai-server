@@ -8,6 +8,6 @@ router = APIRouter()
 async def check():
     return JSONResponse(content={"status": "ok", "message": "AI Server is running."})
 
-@router.get("/hthhcheck")
+@router.get("/healthcheck")
 async def healthcheck():
     return JSONResponse(content={"status": "ok", "message": "AI Server is running."})
