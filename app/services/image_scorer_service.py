@@ -39,16 +39,20 @@ Your task is to evaluate all collage images (excluding the reference images), an
 Do **not** skip or ignore any images.
 
 <Output Format>
-Return **only** the selected top {top_k} image numbers, in descending order of visual quality and uniqueness.  
-**Absolutely do NOT include any explanation, commentary, or extra text. Output ONLY the image numbers.**
+You may include your reasoning and thoughts while evaluating the images.  
+After you are done, return your final answer **only after the token**: `[final output]`  
+
+**After `[final output]`, return exactly {top_k} image numbers**, in descending order of visual quality and uniqueness, separated by commas.  
+No explanation, score, or extra text should appear after that token.
+
 
 Format:
-image_number, image_number, image_number  
-(e.g., "3, 7, 12")
+[final output]  
+3, 7, 12
+
 
 ⚠️ Do NOT include:
 - Any greeting
-- Any score values
 - Any explanation
 - Any formatting other than the one shown above
 
@@ -56,8 +60,7 @@ image_number, image_number, image_number
    YOU MUST STILL OUTPUT *exactly {top_k} image numbers*.
    Duplicated photos still count as separate candidates.
    If necessary, rank duplicates lower but do NOT omit them –
-   select the best {top_k} overall.
-
+   
 Return **exactly {top_k} image numbers** from the collage images. (excluding reference images).
 """
 
@@ -65,9 +68,9 @@ NO_REF_PROMPT = """You are given a sequence of images.
 
 - The remaining images are part of one or more **4×4 collages**, each image labeled with a red number in the upper-left corner.
 
-Your task is to evaluate all collage images (excluding the reference images), and select exactly **9 images** that are both:
+Your task is to evaluate all collage images, and select exactly **9 images** that are both:
 1. Aesthetically pleasing.
-2. Visually diverse and not too similar to any reference image.
+2. Visually diverse and not too similar to any other image.
 
 <Rules – Priority Order>
 1. You must select **exactly 9 images**, no more, no less. This is the most important rule.
@@ -87,16 +90,17 @@ Your task is to evaluate all collage images (excluding the reference images), an
 Do **not** skip or ignore any images.
 
 <Output Format>
-Return **only** the selected top 9 image numbers, in descending order of visual quality and uniqueness.  
-**Absolutely do NOT include any explanation, commentary, or extra text. Output ONLY the image numbers.**
+You may include your reasoning and thoughts while evaluating the images.  
+After you are done, return your final answer **only after the token**: `[final output]`  
+
+**After `[final output]`, return exactly 9 image numbers**, in descending order of visual quality and uniqueness, separated by commas.  
+No explanation, score, or extra text should appear after that token.
 
 Format:
-image_number, image_number, image_number  
-(e.g., "3, 7, 12")
+[final output] 3, 7, 12
 
 ⚠️ Do NOT include:
 - Any greeting
-- Any score values
 - Any explanation
 - Any formatting other than the one shown above
 
@@ -104,8 +108,7 @@ image_number, image_number, image_number
    YOU MUST STILL OUTPUT *exactly 9 image numbers*.
    Duplicated photos still count as separate candidates.
    If necessary, rank duplicates lower but do NOT omit them –
-   select the best 9 overall.
-
+   
 Return **exactly 9 image numbers** from the collage images. (excluding reference images).
 """
 
@@ -163,11 +166,22 @@ async def score_images(request: ImageScoringRequest):
 
         selected = await mllm_select_images_gpt(collages=collages,num_ref=len(reference_list),model="gpt-4.1",collage_ref=collage_ref)
 
-        # selected = mllm_select_images_gemini(collages=collages, num_ref=len(reference_list), collage_ref=collage_ref)
+        # # selected = mllm_select_images_gemini(collages=collages, num_ref=len(reference_list), collage_ref=collage_ref)
 
-        selected_idxs = [int(x.strip()) for x in selected.split(",") if x.strip().isdigit()]
+        # selected_idxs = [int(x.strip()) for x in selected.split(",") if x.strip().isdigit()]
 
-        # 원래 ID로 매핑
+        # # 원래 ID로 매핑
+        # selected_ids = [id_ for img, id_, idx in indexed_images if idx in selected_idxs]
+
+        # GPT 응답에서 [final output] 이후 텍스트만 추출
+        if "[final output]" in selected:
+            selected_text = selected.split("[final output]", 1)[1]
+        else:
+            logger.warning("GPT 응답에 [final output]이 없음")
+            selected_text = selected  # fallback
+
+        # 쉼표 기준으로 나눠서 정수 추출
+        selected_idxs = [int(x.strip()) for x in selected_text.strip().split(",") if x.strip().isdigit()]
         selected_ids = [id_ for img, id_, idx in indexed_images if idx in selected_idxs]
 
         print(repr(selected))          # Gemini가 쉼표/줄바꿈 혼용했나?
