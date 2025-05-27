@@ -29,9 +29,9 @@ def load_images_from_urls(image_urls: List[PhotoInput]):
     return loaded
 
 # 이미지 크기 조정 및 패딩 추가 함수
-def make_thumbnail_with_padding(img: Image.Image, target_size=(500, 500), bg_color=(255, 255, 255)) -> Image.Image:
+def make_thumbnail_with_padding(img: Image.Image, target_size=(400, 400), bg_color=(255, 255, 255)) -> Image.Image:
     img_copy = img.copy()
-    img_copy.thumbnail(target_size, Image.Resampling.LANCZOS)
+    # img_copy.thumbnail(target_size, Image.Resampling.LANCZOS)
     canvas = Image.new("RGB", target_size, bg_color)
     x = (target_size[0] - img_copy.width) // 2
     y = (target_size[1] - img_copy.height) // 2
@@ -46,7 +46,7 @@ def annotate_image(image, number):
     return image
 
 # 16장씩 묶어 4×4 collage 생성 함수
-def create_collage_with_padding(image_tuples, rows=4, cols=4,thumb_size=(500, 500)):
+def create_collage_with_padding(image_tuples, rows=4, cols=4,thumb_size=(400, 400)):
     max_imgs = rows * cols
     group = image_tuples[:max_imgs]
     thumbs = []
@@ -68,7 +68,7 @@ def create_collage_with_padding(image_tuples, rows=4, cols=4,thumb_size=(500, 50
 
 def create_reference_collage(reference_images):
     indexed = [(img, idx) for idx, img in enumerate(reference_images, start=1)]
-    return create_collage_with_padding(indexed, rows=3, cols=3, thumb_size=(500, 500))
+    return create_collage_with_padding(indexed, rows=3, cols=3, thumb_size=(400, 400))
 
 # GPT용 message 작성 함수
 def build_message(prompt: str, images, collage_ref=None):

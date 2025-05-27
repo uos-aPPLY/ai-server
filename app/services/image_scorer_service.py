@@ -148,12 +148,12 @@ async def score_images(request: ImageScoringRequest):
         collages = []
         for i in range(0, len(indexed_images), 16):
             group = [(img, idx) for img, id_, idx in indexed_images[i:i+16]]
-            collage = create_collage_with_padding(group, rows=4, cols=4, thumb_size=(500, 500))
+            collage = create_collage_with_padding(group, rows=4, cols=4)
             collages.append(collage)
         collage_ref = None
         if reference_list:
             ref_images = [(img, idx+1) for idx, (img, _) in enumerate(reference_list)]
-            collage_ref = create_collage_with_padding(ref_images, rows=3, cols=3, thumb_size=(500, 500))
+            collage_ref = create_collage_with_padding(ref_images, rows=3, cols=3)
             collages.append(collage_ref)
 
 
