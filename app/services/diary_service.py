@@ -173,30 +173,31 @@ You are given a series of images (provided in chronological order), along with <
 
 Your task is to write a **single cohesive diary entry in Korean** that:
 
-- Describes the **visual and emotional atmosphere** of each image in the order given  
-- Emulates the **style, tone, and rhythm** of the user’s typical speech (see <User Speech>)  
-- Incorporates **every “focus” element** mentioned per image (e.g., if “인물, 음식” are listed, both must appear clearly in the text)  
-- Reflects each image in 2–3 sentences that align with the user’s tone and detail level
-- Forms a **natural, continuous narrative**, not a segmented list or a bullet-pointed summary 
+- Seamlessly weaves together the **visual and emotional atmosphere** of each image  
+- Emulates the **style, tone, and rhythm** of the user’s typical speech (see <User Speech>) without sounding repetitive or stiff  
+- Includes every “focus” element per image — but in a way that flows organically into the narrative  
+- Uses transitions to blend scenes smoothly without feeling segmented or listed  
 </Task>
 
 
 <Style & Tone Emulation Guide>
-You must analyze the user’s speech pattern provided in <User Speech> and apply the following principles when writing the diary:
+You must analyze the user’s speech pattern in <User Speech> and emulate it throughout the diary.
+
+Pay close attention to:
 - Sentence endings (formal/informal, length)
 - Use of emoji, punctuation, exclamations, sound words, and repetition
 - Emotional tone (joyful, reflective, frustrated, etc.)
 - Notice rhythm and sentence structure (e.g., short and direct vs. flowing and descriptive)
 
-Then emulate the user’s style by:
-- Writing with a tone that mirrors their emotional and expressive habits
-- Matching their rhythm, phrasing, and pacing
-- Adjusting sentence length, word choice, and mood to align with how they typically express themselves
-- Avoiding direct reuse of any phrases — instead, reflect the **vibe, emotion, and structure** of their voice
+Apply the user’s expressive style by:
+- Mirroring their emotional reactions and sentence mood  
+- Adjusting length and rhythm of sentences as appropriate  
+- Avoiding direct reuse of their phrases — instead, emulate the *tone, energy, and structure*  
+- If their speech is short or fragmented, you may extend for clarity while maintaining their voice  
+- If their style is ambiguous, default to a semi-casual and emotionally reflective tone in Korean  
 
-- If the user’s speech style is ambiguous or inconsistent, default to a semi-casual, expressive Korean tone that blends descriptive and reflective language naturally.
-- Even if the user typically writes short sentences, you should expand naturally with more descriptive detail when describing what’s seen in the image — without losing the user’s voice.
-The goal is to write as if the user themselves is describing the scenes, in their own authentic way.
+The diary should read like something the user *naturally wrote themselves*, not like an artificial caption or a robotic report.
+
 </Style & Tone Emulation Guide>
 
 
@@ -210,22 +211,20 @@ Here is a sample of how the user normally speaks or writes:
 {image_information}
 
 <Detail Guidelines>
-- Each image should be represented by **2–3 vivid, context-aware sentences**, adapted to the user’s expressive style   
-- Include all “focus” elements mentioned:  
-    - For 음식 (food): name, color, taste, smell, situation  
-    - For 인물 (people): relevant aspects such as appearance, expression, actions, or interactions — but do not invent details that are not evident from the image or context
-    - For 풍경 (landscape): color, light, movement, mood  
-- Ensure that all images feel equally present in the narrative, though transitions may be blended naturally  
-- **If location names are written in Chinese or English or else, rewrite them naturally in Korean.**  
-  (e.g., “青岛啤酒博物馆” → “칭다오 맥주 박물관”, “古镇路” → “구전루”)  
-  Avoid using raw foreign scripts unless they are commonly used in Korean.
+For each image:
+- Describe it in in **2 to 4 complete sentences**, adapted to the user’s tone and level of detail
+- Include all focus elements (e.g., food name and vibe, person’s appearance or action, landscape’s light or mood), but do not invent things that aren’t implied
 
-<Format Rules>
-- Write the entire diary entry in Korean
-- It should be a **single, unified narrative**, not separate entries per image  
-- Avoid headings, explanations, or any metadata—**output only the diary text**  
-- Minor issues (missing date/location) may be ignored or handled smoothly 
-- Final output must be a single line string in this format- Do not include any headings, explanations, or line breaks. Only return the diary.:  
+General:
+- Blend images smoothly into one narrative — **no segmented lists or bullet-style**
+- Location names in Chinese, English, etc. should be naturally rewritten in Korean  
+  (e.g., “青岛啤酒博物馆” → “칭다오 맥주 박물관”, “Ulaanbaatar” → “울란바토르”)  
+- If minor details are missing (e.g., date or keyword), simply skip or infer softly
+
+<Output Format>
+- Output only the **diary entry in Korean**, as a **single, cohesive paragraph**  
+- Do **not** include any metadata, explanations, line breaks, or headings  
+- Return it as a single line string:  
   **일기 내용**
 """
 
