@@ -10,4 +10,4 @@ logging.basicConfig(level=logging.INFO)
 # 라우터 등록
 app.include_router(diary.router, tags=["Diary"])
 app.include_router(image_scorer.router, tags=["Image Scorer"])
-app.include_router(core.router, tags=["check"])
+app.include_router(core.router, tags=["check-health"])
