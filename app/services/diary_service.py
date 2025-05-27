@@ -166,7 +166,7 @@ async def generate_diary_without_emoji_prompt(user_speech: str, image_informatio
     Generate a diary entry prompt based on user speech and image information.
     """
     return f"""
-You are a Korean diary writer generating a heartfelt, vivid, and flowing journal entry based on a **series of travel photos** and the user’s typical way of speaking.
+You are a Korean diary writer generating a vivid, natural, and personalized journal entry based on a series of photos and the user’s typical way of speaking.
 
 <Task>
 You are given a series of images (provided in chronological order), along with <Image Information> describing each image’s date, location, and focus elements (e.g., people, food, landscape).
@@ -176,15 +176,29 @@ Your task is to write a **single cohesive diary entry in Korean** that:
 - Describes the **visual and emotional atmosphere** of each image in the order given  
 - Emulates the **style, tone, and rhythm** of the user’s typical speech (see <User Speech>)  
 - Incorporates **every “focus” element** mentioned per image (e.g., if “인물, 음식” are listed, both must appear clearly in the text)  
-- Ensures **each image** is reflected in **at least 2–3 detailed and sensory-rich sentences**  
-- Forms a **natural, continuous narrative**, not a segmented list or a bullet-pointed summary  
-- Reads like a genuine, thoughtful diary entry written by the user at the end of a memorable day
-
+- Reflects each image in 2–3 sentences that align with the user’s tone and detail level
+- Forms a **natural, continuous narrative**, not a segmented list or a bullet-pointed summary 
 </Task>
 
-Return the result in the following format (Korean diary only, no explanation):
 
-**일기 내용**
+<Style & Tone Emulation Guide>
+You must analyze the user’s speech pattern provided in <User Speech> and apply the following principles when writing the diary:
+- Sentence endings (formal/informal, length)
+- Use of emoji, punctuation, exclamations, sound words, and repetition
+- Emotional tone (joyful, reflective, frustrated, etc.)
+- Notice rhythm and sentence structure (e.g., short and direct vs. flowing and descriptive)
+
+Then emulate the user’s style by:
+- Writing with a tone that mirrors their emotional and expressive habits
+- Matching their rhythm, phrasing, and pacing
+- Adjusting sentence length, word choice, and mood to align with how they typically express themselves
+- Avoiding direct reuse of any phrases — instead, reflect the **vibe, emotion, and structure** of their voice
+
+- If the user’s speech style is ambiguous or inconsistent, default to a semi-casual, expressive Korean tone that blends descriptive and reflective language naturally.
+- Even if the user typically writes short sentences, you should expand naturally with more descriptive detail when describing what’s seen in the image — without losing the user’s voice.
+The goal is to write as if the user themselves is describing the scenes, in their own authentic way.
+</Style & Tone Emulation Guide>
+
 
 <User Speech>
 Here is a sample of how the user normally speaks or writes:
@@ -192,53 +206,64 @@ Here is a sample of how the user normally speaks or writes:
 </User Speech>
 
 
-<Style Emulation Checklist>
-Analyze the user’s speech above and determine:
-- Sentence endings (formal/informal, length)
-- Emoji and punctuation style
-- Use of exclamations, sound words, and repetition
-- Emotional tone (joyful, reflective, frustrated, etc.)
-- Sentence rhythm and structure
-
-Then write the diary by applying these features. Keep the writing consistent with the user's tone and expressive habits.
-</Style Emulation Checklist>
-
-
-<Tone Adaptation Guide>
-Mimic the user’s voice by carefully reflecting their tone, rhythm, and style. For example:
-- If the user writes calmly and reflectively → use a gentle, introspective tone
-- If they use emojis, exclamations, or slang → write playfully and casually
-- If their writing is short and direct → keep sentences compact and expressive
-- If they are emotionally introspective → show internal emotion and thought process
-
-Avoid direct reuse of any phrases. Instead, match the **vibe, pacing, emotional weight, and structure** of their speech.
-
 <Image Information>
 {image_information}
 
 <Detail Guidelines>
-- Each image should inspire **at least 2–3 full sentences** with sensory, emotional, or visual descriptions  
+- Each image should be represented by **2–3 vivid, context-aware sentences**, adapted to the user’s expressive style   
 - Include all “focus” elements mentioned:  
     - For 음식 (food): name, color, taste, smell, situation  
-    - For 인물 (people): expression, actions, conversation  
+    - For 인물 (people): relevant aspects such as appearance, expression, actions, or interactions — but do not invent details that are not evident from the image or context
     - For 풍경 (landscape): color, light, movement, mood  
-- Do not skip or compress any image’s content. All should feel equally represented  
-- You may blend the transitions naturally, but **each scene must feel alive and distinct**
+- Ensure that all images feel equally present in the narrative, though transitions may be blended naturally  
 - **If location names are written in Chinese or English or else, rewrite them naturally in Korean.**  
   (e.g., “青岛啤酒博物馆” → “칭다오 맥주 박물관”, “古镇路” → “구전루”)  
-  Avoid using raw Chinese characters or foreign spelling unless commonly used in Korean.
+  Avoid using raw foreign scripts unless they are commonly used in Korean.
 
 <Format Rules>
-- Write **entirely in Korean**
-- Produce **one unified diary entry** (not separate blocks per image)
-- If any image’s date/location is missing or odd, ignore it smoothly and focus on the visual content
-- At the end, output **only the diary entry text.**  
-- Do not include section titles, explanations, or extra commentary
+- Write the entire diary entry in Korean
+- It should be a **single, unified narrative**, not separate entries per image  
+- Avoid headings, explanations, or any metadata—**output only the diary text**  
+- Minor issues (missing date/location) may be ignored or handled smoothly 
+- Final output must be a single line string in this format- Do not include any headings, explanations, or line breaks. Only return the diary.:  
+  **일기 내용**
+"""
 
-<Output Format>
-- You must return a single line in the following format:
-  "Korean diary text"
-- Do not include any headings, explanations, or line breaks. Only return the diary.
+async def generate_diary_without_emoji_gemini_prompt(user_speech: str, image_information: str) -> str:
+    """
+    Generate a diary entry prompt based on user speech and image information.
+    """
+    return f"""
+You are a Korean person writing a diary in a vivid and personal way, based on a series of photos taken throughout the day.
+
+You will receive:
+- A sample of how the user usually speaks or writes
+- A list of photos with information such as time, place, and important elements to describe
+
+Your task:
+- Write one **connected diary entry in Korean**, not separate parts per photo
+- Follow the user's writing style closely ( casual, emotional, playful, etc.)
+- Include descriptions for every important element listed for each image (such as people, food, scenery)
+- Use at least 2–3 sentences per photo if needed to describe the scene clearly
+- Add emotional and sensory details (colors, light, taste, movement, mood) if they match the user’s tone
+- If place names are in Chinese or English, rewrite them in natural Korean (e.g. "青岛啤酒博物馆" → "칭다오 맥주 박물관")
+🎯 Match the user's tone, especially sentence endings.  
+If the user ends sentences like this:
+- "했음", "일어남", "같기도 하구", "...했었다", "라고 했다", "친절하다고 생각함"  
+You don’t need to repeat these exact words, but **use similar informal, flowing, and introspective endings** that feel natural for Korean casual writing.
+
+⚠️ Important writing rules:
+- Be casual and expressive, as if the user is talking to a friend
+- Do not invent things that are not in the image info
+- Do not write a list. It should feel like one story.
+- Only return the diary. No titles, explanations, or line breaks. Just:  
+  "일기 내용"
+
+Here is how the user speaks or writes:
+"{user_speech}"
+
+Here are the image details:
+{image_information}
 """
 
 
@@ -252,10 +277,10 @@ async def convert_image_info_to_text(image_info: List[PhotoItem]) -> str:
     )
 
     return "\n\n".join(
-        f"""Information about the {i}th entered image:
+        f"""Image {i}:
         Date: {img.shootingDateTime}
         Location: {img.detailedAddress}
-        What to look for in a photo: {img.keyword}
+        keyword(s) of photo: {img.keyword}
         """
         for i, img in enumerate(sorted_images)
     )
@@ -320,17 +345,7 @@ async def generate_diary_by_ai(
     logger.info("[일기 생성 요청 수신됨]")
     try:
         image_info_text = await convert_image_info_to_text(req.image_info)
-        # prompt = generate_diary_prompt(user_speech=req.user_speech, image_information=image_info_text)
-        # message = build_message(prompt=prompt, images=req.image_info)
-
-        # # GPT-4o 멀티모달 호출
-        # response = client.responses.create(
-        #     model="gpt-4.1",
-        #     input=message
-        # )
-        # # 결과 파싱
-        # output = response.output_text.strip()
-
+        
         prompt = await generate_diary_without_emoji_prompt(user_speech=req.user_speech, image_information=image_info_text)
         message = await build_message(prompt=prompt, images=req.image_info)
 
@@ -362,26 +377,31 @@ async def generate_diary_by_ai(
         return DiaryResponse(diary=output.strip(), emoji=emoji.strip().lower())
 
         # # Gemini 호출
-        # prompt = generate_diary_prompt(
+        # prompt = await generate_diary_without_emoji_gemini_prompt(
         #     user_speech=req.user_speech,
         #     image_information=image_info_text
         # )
-        # message = build_gemini_message(prompt=prompt, images=req.image_info)
+        # message = await build_gemini_message(prompt=prompt, images=req.image_info)
         # response = model.generate_content(message)
         # output = response.text.strip()
 
+        # message = [
+        #     {
+        #         "role": "user",
+        #         "content": [
+        #             {"type": "input_text", "text": await generate_emotion_prompt(output)},
+        #         ],
+        #     }
+        # ]
+        # emoji = client.responses.create(
+        #     model="gpt-4.1-nano",
+        #     input=message
+        # )
+        # emoji = emoji.output_text.strip().lower()
 
-        # # 마지막 단어를 이모지로 떼고 나머지를 일기로 처리
-        # tokens = output.strip().rsplit(" ", 1)
-        # if len(tokens) == 2:
-        #     diary_text, emoji = tokens
-        #     if diary_text.endswith(","):
-        #         diary_text = diary_text[:-1].strip()
-        # else:
-        #     diary_text = output
-        #     emoji = "Unknown"
+        # logger.info(f"[generate 완료] : {output}, {emoji}")
 
-        # return DiaryResponse(diary=diary_text.strip(), emoji=emoji.strip().lower())
+        # return DiaryResponse(diary=output.strip(), emoji=emoji.strip().lower())
     except openai.APIConnectionError as e:
         logger.error(f"[OpenAI 연결 오류] {e}")
         raise RuntimeError("API_CONNECTION_ERROR") from e
