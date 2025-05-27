@@ -120,7 +120,7 @@ async def fetch_image(photo, session):
         return (content, photo.id)
 
 async def load_and_decode_images(photo_list):
-    conn = aiohttp.TCPConnector(limit=25)
+    conn = aiohttp.TCPConnector(limit=15)
     async with aiohttp.ClientSession() as session:
         tasks = [fetch_image(photo, session) for photo in photo_list]
         contents = await asyncio.gather(*tasks)
