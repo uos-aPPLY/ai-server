@@ -169,7 +169,7 @@ async def generate_diary_without_emoji_prompt(user_speech: str, image_informatio
 You are a Korean diary writer generating a vivid, natural, and personalized journal entry based on a series of photos and the user’s typical way of speaking.
 
 <Task>
-You are given a series of images (provided in chronological order), along with <Image Information> describing each image’s date, location, and focus elements (e.g., people, food, landscape).
+You are given a series of images (provided in chronological order, sorted by sequence from 0 to N.), along with <Image Information> describing each image’s date, location, and focus elements (e.g., people, food, landscape).
 
 Your task is to write a **single cohesive diary entry in Korean** that:
 
