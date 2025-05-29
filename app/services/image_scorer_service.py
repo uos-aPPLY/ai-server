@@ -156,9 +156,9 @@ async def score_images(request: ImageScoringRequest):
             collage_ref = create_collage_with_padding(ref_images, rows=3, cols=3)
             collages.append(collage_ref)
 
-
+        logger.info(f"api 요청 전송")
         selected = await mllm_select_images_gpt(collages=collages,num_ref=len(reference_list),model="gpt-4.1",collage_ref=collage_ref)
-
+        logger.info(f"api 응답 수신: {selected}")
         # selected = mllm_select_images_gemini(collages=collages, num_ref=len(reference_list), collage_ref=collage_ref)
 
         selected_idxs = [int(x.strip()) for x in selected.split(",") if x.strip().isdigit()]
@@ -177,8 +177,6 @@ async def score_images(request: ImageScoringRequest):
         # selected_idxs = [int(x.strip()) for x in selected_text.strip().split(",") if x.strip().isdigit()]
         # selected_ids = [id_ for img, id_, idx in indexed_images if idx in selected_idxs]
 
-        print(repr(selected))          # Gemini가 쉼표/줄바꿈 혼용했나?
-        print(len(selected_idxs))      # 파싱 후 실제 개수
         return ImageScoringResponse(
             recommendedPhotoIds=selected_ids
         )
