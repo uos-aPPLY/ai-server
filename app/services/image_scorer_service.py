@@ -18,8 +18,8 @@ MLLM_SCORING_PROMPT = """You are given a sequence of images.
 - You must select only from the collage images (i.e., excluding the reference images).
 
 Your task is to evaluate all collage images (excluding the reference images), and select exactly **{top_k} images** that are both:
-1. Aesthetically pleasing.
-2. Visually diverse and not too similar to any reference image.
+1. Visually diverse and not too similar to any other image.
+2. Aesthetically pleasing.
 
 <Rules – Priority Order>
 1. You must select **exactly {top_k} images**, no more, no less. This is the most important rule.
@@ -39,38 +39,47 @@ Your task is to evaluate all collage images (excluding the reference images), an
 Do **not** skip or ignore any images.
 
 <Output Format>
-Return **only** the selected top {top_k} image numbers, in descending order of visual quality and uniqueness.  
-**Absolutely do NOT include any explanation, commentary, or extra text. Output ONLY the image numbers.**
+You may include your reasoning and thoughts during evaluation using the `[thinking]` section.  
+Use one short line per image (e.g., `#12: unique color but similar to #3`). You may note similarities, issues, or standout qualities.  
+
+After evaluation, return your final answer **only after the token**: `[final output]`  
+
+**After `[final output]`, return exactly {top_k} image numbers**, in descending order of visual quality and uniqueness, separated by commas.  
+No explanation, score, or extra text should appear after that token.
 
 Format:
-image_number, image_number, image_number  
-(e.g., "3, 7, 12")
+[thinking]  
+#1: brief comment (e.g., good, top, similar to n, creative, bad, etc.)  
+#2: ...  
+...  
+[final output]  
+3, 7, 12, ... (exactly {top_k} image numbers)
+
+
 
 ⚠️ Do NOT include:
 - Any greeting
-- Any explanation
-- Any formatting other than the one shown above
+- Any explanation after `[final output]`  
 
-❗ Even if many images are visually similar or duplicated,
-   YOU MUST STILL OUTPUT *exactly {top_k} image numbers*.
-   Duplicated photos still count as separate candidates.
-   If necessary, rank duplicates lower but do NOT omit them –
-   
-Return **exactly {top_k} image numbers** from the collage images. (excluding reference images).
+❗ Even if many images are visually similar or duplicated,  
+   YOU MUST STILL OUTPUT *exactly {top_k} image numbers*.  
+   Duplicated photos still count as separate candidates.  
+   Rank them lower if needed, but do NOT skip them.
 """
 
 NO_REF_PROMPT = """You are given a sequence of images.
 
 - The remaining images are part of one or more **4×4 collages**, each image labeled with a red number in the upper-left corner.
+- You must select only from the collage images.
 
 Your task is to evaluate all collage images, and select exactly **9 images** that are both:
-1. Aesthetically pleasing.
-2. Visually diverse and not too similar to any other image.
+1. Visually diverse and not too similar to any other image.
+2. Aesthetically pleasing.
 
 <Rules – Priority Order>
 1. You must select **exactly 9 images**, no more, no less. This is the most important rule.
-2. Select images that are visually diverse in subject, style, or composition, and avoid those that are overly similar to any reference image.
-3. Avoid selecting images that are visually similar (≥75%) to any **reference image**.
+2. Select images that are visually diverse in subject, style, or composition.
+3. Avoid selecting images that are visually similar (≥75%) to any other images.
 4. Select images that are both **aesthetically pleasing** and **visually distinct**.
 5. Aesthetically pleasing images should:
    - Be sharp and in clear focus.
@@ -79,30 +88,38 @@ Your task is to evaluate all collage images, and select exactly **9 images** tha
    - Have natural lighting with good contrast and proper exposure.
    - Present a harmonious color scheme and emotionally appealing atmosphere.
 6. Consider **diversity of subject matter** (e.g., landscapes, portraits, food, architecture, etc.).
-7. Choose the **9** best images based on overall quality and uniqueness.
+7. Choose the 9 best images based on overall quality and uniqueness.
 
 ⚠️ You **must evaluate every single image in the collage(s)**.  
 Do **not** skip or ignore any images.
 
 <Output Format>
-Return **only** the selected top 9 image numbers, in descending order of visual quality and uniqueness.  
-**Absolutely do NOT include any explanation, commentary, or extra text. Output ONLY the image numbers.**
+You may include your reasoning and thoughts during evaluation using the `[thinking]` section.  
+Use one short line per image (e.g., `#12: unique color but similar to #3`). You may note similarities, issues, or standout qualities.  
+
+After evaluation, return your final answer **only after the token**: `[final output]`  
+
+**After `[final output]`, return exactly 9 image numbers**, in descending order of visual quality and uniqueness, separated by commas.  
+No explanation, score, or extra text should appear after that token.
 
 Format:
-image_number, image_number, image_number  
-(e.g., "3, 7, 12")
+[thinking]  
+#1: brief comment (e.g., good, top, similar to n, creative, bad, etc.)  
+#2: ...  
+...  
+[final output]  
+3, 7, 12, ... (exactly 9 image numbers)
+
+
 
 ⚠️ Do NOT include:
 - Any greeting
-- Any explanation
-- Any formatting other than the one shown above
+- Any explanation after `[final output]`  
 
-❗ Even if many images are visually similar or duplicated,
-   YOU MUST STILL OUTPUT *exactly 9 image numbers*.
-   Duplicated photos still count as separate candidates.
-   If necessary, rank duplicates lower but do NOT omit them –
-   
-Return **exactly 9 image numbers** from the collage images. (excluding reference images).
+❗ Even if many images are visually similar or duplicated,  
+   YOU MUST STILL OUTPUT *exactly 9 image numbers*.  
+   Duplicated photos still count as separate candidates.  
+   Rank them lower if needed, but do NOT skip them.
 """
 
 
@@ -159,24 +176,25 @@ async def score_images(request: ImageScoringRequest):
         logger.info(f"api 요청 전송")
         selected = await mllm_select_images_gpt(collages=collages,num_ref=len(reference_list),model="gpt-4.1",collage_ref=collage_ref)
         logger.info(f"api 응답 수신: {selected}")
-        # selected = mllm_select_images_gemini(collages=collages, num_ref=len(reference_list), collage_ref=collage_ref)
+        # # selected = mllm_select_images_gemini(collages=collages, num_ref=len(reference_list), collage_ref=collage_ref)
 
-        selected_idxs = [int(x.strip()) for x in selected.split(",") if x.strip().isdigit()]
+        # selected_idxs = [int(x.strip()) for x in selected.split(",") if x.strip().isdigit()]
 
-        # 원래 ID로 매핑
+        # # 원래 ID로 매핑
+        # selected_ids = [id_ for img, id_, idx in indexed_images if idx in selected_idxs]
+        # logger.info(f"선택된 이미지 ID: {selected_ids}")
+
+        # GPT 응답에서 [final output] 이후 텍스트만 추출
+        if "[final output]" in selected:
+            selected_text = selected.split("[final output]", 1)[1]
+        else:
+            logger.warning("GPT 응답에 [final output]이 없음")
+            selected_text = selected  # fallback
+
+        # 쉼표 기준으로 나눠서 정수 추출
+        selected_idxs = [int(x.strip()) for x in selected_text.strip().split(",") if x.strip().isdigit()]
         selected_ids = [id_ for img, id_, idx in indexed_images if idx in selected_idxs]
         logger.info(f"선택된 이미지 ID: {selected_ids}")
-        # # GPT 응답에서 [final output] 이후 텍스트만 추출
-        # if "[final output]" in selected:
-        #     selected_text = selected.split("[final output]", 1)[1]
-        # else:
-        #     logger.warning("GPT 응답에 [final output]이 없음")
-        #     selected_text = selected  # fallback
-
-        # # 쉼표 기준으로 나눠서 정수 추출
-        # selected_idxs = [int(x.strip()) for x in selected_text.strip().split(",") if x.strip().isdigit()]
-        # selected_ids = [id_ for img, id_, idx in indexed_images if idx in selected_idxs]
-
         return ImageScoringResponse(
             recommendedPhotoIds=selected_ids
         )
