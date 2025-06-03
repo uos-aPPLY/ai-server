@@ -192,7 +192,7 @@ async def score_images(request: ImageScoringRequest):
         selected_ids.extend([photo.id for photo in request.reference_images])  # reference 이미지 ID 추가
         logger.info(f"최종 이미지 ID(ref 포함함): {selected_ids}")
         logger.info(f"GPT 선택 번호: {selected_idxs}")
-        logger.info(f"gpt_number_to_id.keys(): {list(gpt_number_to_id.keys())}")
+        logger.info(f"gpt_number_to_id.keys(): {list(idx_to_id_map)}")
 
 
         if len(selected_ids) < 9:
