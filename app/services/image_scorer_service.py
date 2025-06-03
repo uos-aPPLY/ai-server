@@ -12,6 +12,8 @@ from app.core.config import client
 from app.core.logger import logger
 from app.core.config import model
 
+import random 
+
 MLLM_SCORING_PROMPT = """You are given a sequence of images.
 
 - The **first collage** you see is composed of {num_reference} **reference images**. Do **NOT** select any image from this reference collage.
@@ -175,14 +177,7 @@ async def score_images(request: ImageScoringRequest):
         logger.info(f"api 요청 전송")
         selected = await mllm_select_images_gpt(collages=collages,num_ref=len(reference_list),model="gpt-4.1",collage_ref=collage_ref)
         logger.info(f"api 응답 수신: {selected}")
-        # # selected = mllm_select_images_gemini(collages=collages, num_ref=len(reference_list), collage_ref=collage_ref)
-
-        # selected_idxs = [int(x.strip()) for x in selected.split(",") if x.strip().isdigit()]
-
-        # # 원래 ID로 매핑
-        # selected_ids = [id_ for img, id_, idx in indexed_images if idx in selected_idxs]
-        # logger.info(f"선택된 이미지 ID: {selected_ids}")
-
+        
         # GPT 응답에서 [final output] 이후 텍스트만 추출
         if "[final output]" in selected:
             selected_text = selected.split("[final output]", 1)[1]
@@ -193,13 +188,34 @@ async def score_images(request: ImageScoringRequest):
         # 쉼표 기준으로 나눠서 정수 추출
         selected_idxs = [int(x.strip()) for x in selected_text.strip().split(",") if x.strip().isdigit()]
         selected_ids = [idx_to_id_map[i] for i in selected_idxs if i in idx_to_id_map]
-        selected_ids.extend([photo.id for photo in request.reference_images])  # reference 이미지 ID 추가
         logger.info(f"선택된 이미지 ID(by ai): {selected_ids}")
-        logger.info(f"GPT 선택 번호: {selected_idxs}")
-        logger.info(f"GPT 번호 → ID 매핑: {idx_to_id_map}")
-        logger.info(f"reference image 개수: {len(request.reference_images)}")
-        logger.info(f"reference IDs: {[photo.id for photo in request.reference_images]}")
-        logger.info(f"최종 선택된 이미지 ID 수: {len(selected_ids)}")
+        selected_ids.extend([photo.id for photo in request.reference_images])  # reference 이미지 ID 추가
+        logger.info(f"최종 이미지 ID(ref 포함함): {selected_ids}")
+
+
+        if len(selected_ids) < 9:
+            logger.warning(f"선택된 이미지 수가 9개 미만: {len(selected_ids)}. 랜덤 추천 이미지 추가")
+            all_candidate_ids = [photo.id for photo in request.images]
+
+            # 이미 선택된 ID (GPT 선택 + ref 이미지)
+            selected_ids = list(set(selected_ids))  # 중복 제거
+
+            # 아직 선택되지 않은 ID 중에서 랜덤하게 미리 섞어둠 (최대 9장까지 대비)
+            remaining_ids = list(set(all_candidate_ids) - set(selected_ids))
+            random.shuffle(remaining_ids)
+
+            # 부족한 수 계산
+            missing_count = 9 - len(selected_ids)
+
+            # 부족분만큼 추가
+            if missing_count > 0:
+                selected_ids.extend(remaining_ids[:missing_count])
+            logger.info(f"선택된 이미지 ID(random 추가): {selected_ids}")
+
+        # 9개로 제한
+        selected_ids = selected_ids[:9]
+        logger.info(f"최종 추천 이미지 ID: {selected_ids}")
+            
         return ImageScoringResponse(
             recommendedPhotoIds=selected_ids
         )
