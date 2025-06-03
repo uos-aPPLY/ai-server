@@ -80,15 +80,10 @@ def create_collage_with_padding_refIMG(image_tuples, rows=3, cols=3,thumb_size=(
     collage = Image.new("RGB", (collage_w, collage_h), (255, 255, 255))
     
     # 텍스트 추가
-    draw = ImageDraw.Draw(collage)
-    try:
-        font = ImageFont.truetype("arial.ttf", 28)
-    except IOError:
-        font = ImageFont.load_default()
     text = "[REFERENCE IMAGES] Do NOT select any images from this collage."
-    text_w, text_h = draw.textsize(text, font=font)
-    text_x = (collage_w - text_w) // 2
-    draw.text((text_x, 10), text, fill=(255, 0, 0), font=font)
+    draw = ImageDraw.Draw(collage)
+    draw.text((20, 15),text, fill=(255, 0, 0), font=FONT)
+
 
 
     for idx, thumb in enumerate(thumbs):
