@@ -16,8 +16,8 @@ import random
 
 MLLM_SCORING_PROMPT = """You are given a sequence of images.
 
-- The **first collage** you see is composed of {num_reference} **reference images**. Do **NOT** select any image from this reference collage.
-- The remaining images are part of one or more **4×4 collages**, each image labeled with a red number in the upper-left corner.
+- The **last collage** you see is composed of {num_reference} **reference images**. Do **NOT** select any image from this reference collage.
+- The remaining images(1st image ~  penultimate image) are part of one or more **4×4 collages**, each image labeled with a red number in the upper-left corner.
 - You must select only from the collage images (i.e., excluding the reference images).
 
 Your task is to evaluate all collage images (excluding the reference images), and select exactly **{top_k} images** that are both:

@@ -100,14 +100,14 @@ def create_reference_collage(reference_images):
 # GPT용 message 작성 함수
 def build_message(prompt: str, images, collage_ref=None):
     msg = [{"role":"user", "content":[{"type":"input_text", "text":prompt}]}]
-    if collage_ref:
-        buffer = BytesIO()
-        collage_ref.save(buffer, format="PNG")
-        data_url = "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
-        msg[0]["content"].append({"type":"input_image","image_url":data_url})
     for img in images:
         buffer = BytesIO()
         img.save(buffer, format="PNG")
+        data_url = "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
+        msg[0]["content"].append({"type":"input_image","image_url":data_url})
+    if collage_ref:
+        buffer = BytesIO()
+        collage_ref.save(buffer, format="PNG")
         data_url = "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
         msg[0]["content"].append({"type":"input_image","image_url":data_url})
     return msg
