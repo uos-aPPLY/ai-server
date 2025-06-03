@@ -11,8 +11,22 @@ from app.core.logger import logger
 from app.core.config import client, model
 from app.utils.diary_utils import mark_by_sentence_indices
 
+import random
 
 load_dotenv()
+
+EMOTION_EMOJI_MAP = {
+            "special" :  ["love",  "proud", "sneaky"],
+            "good" : ["smile", "happy", "cool"],
+            "bad" : ["annoyed", "angry", "depression"]
+        }
+
+def pick_emoji_by_emotion(emotion_label: str) -> list[str]:
+    candidates = EMOTION_EMOJI_MAP.get(emotion_label, [])
+    if not candidates:
+        return "smile"  # 기본값으로 "smile" 반환
+    return random.sample(candidates, 1)[0]
+
 
 async def convert_image_to_base64(image_path: str, target_width: int = 800) -> str:
     """
@@ -44,28 +58,18 @@ async def generate_emotion_prompt(diary: str) -> str:
     """
     Generate a prompt for classifying the emotional tone of a diary entry.
     """
-    return  f"""You are analyzing the following diary to determine its dominant emotional tone.
+    return  f"""Analyze the content of the following diary entry and classify its overall emotional outcome.
 
-First, identify all **emotionally expressive segments**, especially those that involve strong reactions such as frustration, excitement, pride, or discomfort. Pay particular attention to phrases where emotions are directly or indirectly revealed (e.g., “귀 쏙 들어갈 뻔”, “기분이 너무 좋아서”, “머리 찡했다”).
+Focus on what actually happened and its emotional impact, rather than the tone of expression.
 
-Then, among the following labels, choose the **single label that best reflects the dominant emotional tone**, giving **priority to the strongest emotional expressions**, even if they appear later in the diary.
+Choose **one** label:
+- **special** – something specially positive or satisfying happened (e.g., a fun event, a beautiful view)
+- **good** – generally positive or pleasant
+- **bad** – something negative, upsetting, or frustrating happened
 
-Label options:
-- **love**
-- **depression**
-- **happy**
-- **smile**
-- **cool** 
-- **proud** 
-- **sneaky**  
-- **annoyed**
-- **angry** 
+Diary: {diary}
 
-
-Diary content : {diary}
-
-Do not include any headings, explanations, or line breaks.
-Only return the label."""
+Respond with only the label. Do not explain."""
 
 async def generate_diary_prompt(user_speech: str, image_information: str) -> str:
     """
@@ -372,8 +376,10 @@ async def generate_diary_by_ai(
         emoji = emoji.output_text.strip().lower()
 
         logger.info(f"[generate 완료] : {output}, {emoji}")
+        
+        emoji = pick_emoji_by_emotion(emoji)
 
-        return DiaryResponse(diary=output.strip(), emoji=emoji.strip().lower())
+        return DiaryResponse(diary=output.strip(), emoji=emoji)
 
         # # Gemini 호출
         # prompt = await generate_diary_without_emoji_gemini_prompt(
@@ -449,13 +455,15 @@ Your job is to edit only the parts explicitly requested by the user, while leavi
 <Additional Task – Emoji Classification>
 After writing the diary entry, analyze the overall emotional tone and classify it with one of the following emoji names that best represents the **dominant mood** of the entire diary:
 
-- **happy** – bright, joyful, light-hearted mood  
-- **smile** – calm contentment or warmth  
-- **cool** – confident, relaxed, stylish tone  
-- **angry** – irritation, disappointment, or frustration  
-- **sneaky** – mischievous, playful, cheeky tone  
-- **annoyed** – annoyed, sulky, displeased tone  
-- **proud** – self-reflective achievement, confidence, or pride  
+- **love**
+- **depression**
+- **happy**
+- **smile**
+- **cool** 
+- **proud** 
+- **sneaky**  
+- **annoyed**
+- **angry**  
 
 [USER SPEECH]
 Here is a sample of how the user normally speaks or writes:
