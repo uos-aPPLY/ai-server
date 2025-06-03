@@ -66,6 +66,26 @@ def create_collage_with_padding(image_tuples, rows=4, cols=4,thumb_size=(400, 40
     
     return collage
 
+# 16장씩 묶어 4×4 collage 생성 함수
+def create_collage_with_padding_refIMG(image_tuples, rows=3, cols=3,thumb_size=(400, 400)):
+    max_imgs = rows * cols
+    group = image_tuples[:max_imgs]
+    thumbs = []
+    for img, global_idx in group:
+        thumb = make_thumbnail_with_padding(img, target_size=thumb_size)
+        thumbs.append(thumb)
+
+    collage_w = cols * thumb_size[0]
+    collage_h = rows * thumb_size[1]
+    collage = Image.new("RGB", (collage_w, collage_h), (255, 255, 255))
+    
+    for idx, thumb in enumerate(thumbs):
+        row, col = divmod(idx, cols)
+        x, y = col * thumb_size[0], row * thumb_size[1]
+        collage.paste(thumb, (x, y))
+    
+    return collage
+
 def create_reference_collage(reference_images):
     indexed = [(img, idx) for idx, img in enumerate(reference_images, start=1)]
     return create_collage_with_padding(indexed, rows=3, cols=3, thumb_size=(400, 400))

@@ -4,7 +4,8 @@ from app.utils.image_utils import (
     create_collage_with_padding,
     create_reference_collage,
     build_message,
-    build_message_gemini
+    build_message_gemini,
+    create_collage_with_padding_refIMG
 )
 from app.schemas.image_schema import ImageScoringRequest, ImageScoringResponse
 from app.core.config import client
@@ -13,7 +14,7 @@ from app.core.config import model
 
 MLLM_SCORING_PROMPT = """You are given a sequence of images.
 
-- The first {num_reference} images are **reference images**. These are example images that should **not be selected or closely mimicked**.
+- The **first collage** you see is composed of {num_reference} **reference images**. Do **NOT** select any image from this reference collage.
 - The remaining images are part of one or more **4×4 collages**, each image labeled with a red number in the upper-left corner.
 - You must select only from the collage images (i.e., excluding the reference images).
 
@@ -149,18 +150,16 @@ async def score_images(request: ImageScoringRequest):
         if request.reference_images:
             reference_ids = {photo.id for photo in request.reference_images}
             request.images = [photo for photo in request.images if photo.id not in reference_ids]
-
+        idx_to_id_map = {}
         # 이미지 불러오기
-        # if(len(request.images)>100): # 100장 이상일 경우 비동기 처리
         images_list = await load_and_decode_images(request.images)
         reference_list = await load_and_decode_images(request.reference_images) if request.reference_images else []
-        # else: # 100장 이하일 경우 동기 처리
-        #     images_list = load_images_from_urls(request.images)
-        #     reference_list = load_images_from_urls(request.reference_images) if request.reference_images else []
+
         # # ID ↔ 번호 매핑
         indexed_images = []
         for idx, (img, id_) in enumerate(images_list, start=1):
             indexed_images.append((img, id_, idx))
+            idx_to_id_map[idx] = id_
             # 콜라주 생성
         collages = []
         for i in range(0, len(indexed_images), 16):
@@ -170,7 +169,7 @@ async def score_images(request: ImageScoringRequest):
         collage_ref = None
         if reference_list:
             ref_images = [(img, idx+1) for idx, (img, _) in enumerate(reference_list)]
-            collage_ref = create_collage_with_padding(ref_images, rows=3, cols=3)
+            collage_ref = create_collage_with_padding_refIMG(ref_images, rows=3, cols=3)
             collages.append(collage_ref)
 
         logger.info(f"api 요청 전송")
@@ -193,8 +192,14 @@ async def score_images(request: ImageScoringRequest):
 
         # 쉼표 기준으로 나눠서 정수 추출
         selected_idxs = [int(x.strip()) for x in selected_text.strip().split(",") if x.strip().isdigit()]
-        selected_ids = [id_ for img, id_, idx in indexed_images if idx in selected_idxs]
-        logger.info(f"선택된 이미지 ID: {selected_ids}")
+        selected_ids = [idx_to_id_map[i] for i in selected_idxs if i in idx_to_id_map]
+        selected_ids.extend([photo.id for photo in request.reference_images])  # reference 이미지 ID 추가
+        logger.info(f"선택된 이미지 ID(by ai): {selected_ids}")
+        logger.info(f"GPT 선택 번호: {selected_idxs}")
+        logger.info(f"GPT 번호 → ID 매핑: {idx_to_id_map}")
+        logger.info(f"reference image 개수: {len(request.reference_images)}")
+        logger.info(f"reference IDs: {[photo.id for photo in request.reference_images]}")
+        logger.info(f"최종 선택된 이미지 ID 수: {len(selected_ids)}")
         return ImageScoringResponse(
             recommendedPhotoIds=selected_ids
         )
