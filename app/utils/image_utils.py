@@ -67,7 +67,7 @@ def create_collage_with_padding(image_tuples, rows=4, cols=4,thumb_size=(400, 40
     return collage
 
 # 16장씩 묶어 4×4 collage 생성 함수
-def create_collage_with_padding_refIMG(image_tuples, rows=3, cols=3,thumb_size=(400, 400)):
+def create_collage_with_padding_refIMG(image_tuples, rows=3, cols=3,thumb_size=(400, 450)):
     max_imgs = rows * cols
     group = image_tuples[:max_imgs]
     thumbs = []
@@ -79,9 +79,21 @@ def create_collage_with_padding_refIMG(image_tuples, rows=3, cols=3,thumb_size=(
     collage_h = rows * thumb_size[1]
     collage = Image.new("RGB", (collage_w, collage_h), (255, 255, 255))
     
+    # 텍스트 추가
+    draw = ImageDraw.Draw(collage)
+    try:
+        font = ImageFont.truetype("arial.ttf", 28)
+    except IOError:
+        font = ImageFont.load_default()
+    text = "[REFERENCE IMAGES] Do NOT select any images from this collage."
+    text_w, text_h = draw.textsize(text, font=font)
+    text_x = (collage_w - text_w) // 2
+    draw.text((text_x, 10), text, fill=(255, 0, 0), font=font)
+
+
     for idx, thumb in enumerate(thumbs):
         row, col = divmod(idx, cols)
-        x, y = col * thumb_size[0], row * thumb_size[1]
+        x, y = col * thumb_size[0], row * thumb_size[1] + 50
         collage.paste(thumb, (x, y))
     
     return collage
