@@ -200,9 +200,8 @@ Apply the user’s expressive style by:
 - If their speech is short or fragmented, you may extend for clarity while maintaining their voice  
 - If their style is ambiguous, default to a semi-casual and emotionally neutral and observant tone in Korean — avoid excessive introspection or sentimentality
 
-If the provided <User Speech> is relatively factual, concise, or emotionally muted, strictly avoid adding emotional color or speculative reflections in the diary.
+The diary should read like something the user *naturally wrote themselves*, not like an artificial caption or a robotic report.
 
-The diary should read like something the user naturally wrote — succinct, grounded, and descriptive, rather than emotional or poetic.
 
 </Style & Tone Emulation Guide>
 
