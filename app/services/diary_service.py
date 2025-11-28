@@ -502,9 +502,6 @@ async def modify_diary(req : DiaryModifyRequest) -> DiaryResponse:
             diary=req.diary,
             user_request=req.user_request
         )
-        # response = model.generate_content(prompt)
-        # 결과 파싱
-        # output = response.text.strip()
 
         
         # GPT-4o 멀티모달 호출
