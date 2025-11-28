@@ -502,10 +502,20 @@ async def modify_diary(req : DiaryModifyRequest) -> DiaryResponse:
             diary=req.diary,
             user_request=req.user_request
         )
-        response = model.generate_content(prompt)
-
+        # response = model.generate_content(prompt)
         # 결과 파싱
-        output = response.text.strip()
+        # output = response.text.strip()
+
+        
+        # GPT-4o 멀티모달 호출
+        response = client.responses.create(
+            model="gpt-5.1",
+            input=prompt
+        )
+        # 결과 파싱
+        output = response.output_text.strip()
+
+        
         # 명시적 태그를 기준으로 파싱
         if "<DIARY>" in output and "<EMOTION>" in output:
             try:
