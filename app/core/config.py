@@ -13,4 +13,4 @@ if not GOOGLE_API_KEY:
 genai.configure(api_key=GOOGLE_API_KEY)
 
 client = OpenAI(api_key=OPENAI_API_KEY)
-model = genai.GenerativeModel('models/gemini-2.5-flash-preview-04-17')
+model = genai.GenerativeModel('models/gemini-2.5-flash')
